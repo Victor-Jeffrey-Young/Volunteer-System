@@ -62,6 +62,7 @@ const handleLogin = async () => {
 
     // 🚨 检查点：确保后端返回的字段名是 token, role, realName
     // 如果你后端返回的是 username，这里也要对应改
+    localStorage.setItem('userId', res.data.userId);
     localStorage.setItem('token', res.data.token);
     localStorage.setItem('role', res.data.role);     // 这个值必须是 'ADMIN' 或 'VOLUNTEER'
     localStorage.setItem('realName', res.data.realName);

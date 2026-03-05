@@ -37,6 +37,8 @@ public class AuthController {
             data.put("username", user.getUsername());
             data.put("realName", user.getRealName());
             data.put("role", user.getRole()); // 🚨 检查这里：user.getRole() 是否有值？
+            data.put("userId", user.getUserId()); // 新增这一行
+            data.put("token", token);
 
             return Result.success(data);
         } catch (RuntimeException e) {

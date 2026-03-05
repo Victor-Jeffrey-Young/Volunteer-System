@@ -22,6 +22,39 @@ const routes = [
                 name: 'UserManage',
                 component: () => import('../views/UserManage.vue'),
                 meta: { requiresAdmin: true }
+            },
+            {
+                path: 'activities',
+                name: 'ActivityManage',
+                component: () => import('../views/ActivityManage.vue')
+            },
+            {
+                path: 'my-records',
+                name: 'MyRecord',
+                component: () => import('../views/MyRecord.vue')
+            },
+            {
+                path: 'registrations',
+                name: 'RegistrationManage',
+                component: () => import('../views/RegistrationManage.vue'),
+                meta: { requiresAdmin: true } // 管理员专属
+            },
+            {
+                path: 'profile',
+                name: 'Profile',
+                component: () => import('../views/Profile.vue')
+            },
+            {
+                path: 'notices',
+                name: 'NoticeManage',
+                component: () => import('../views/NoticeManage.vue'),
+                meta: { requiresAdmin: true }
+            },
+            {
+                path: 'databoard',
+                name: 'DataBoard',
+                component: () => import('../views/DataBoard.vue'),
+                meta: { requiresAdmin: true }
             }
         ]
     }

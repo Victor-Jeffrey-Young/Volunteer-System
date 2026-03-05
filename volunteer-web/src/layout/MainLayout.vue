@@ -1,41 +1,94 @@
 <template>
   <div class="admin-layout">
-    <!-- 左侧边栏 -->
+    <!-- 左侧边栏：改为白色背景，带轻微阴影 -->
     <div class="sidebar">
-      <div class="logo">志愿管理系统</div>
-      <nav>
-        <router-link to="/home" class="nav-item">🏠 系统首页</router-link>
+      <div class="logo-container">
+        <!-- 加个简单的 Logo 图标 -->
+        <el-icon class="logo-icon"><Promotion /></el-icon>
+        <span class="logo-text">志愿服务管理</span>
+      </div>
 
-        <!-- 🚨 确认这里的 userRole 是否等于 'ADMIN' -->
-        <router-link v-if="userRole === 'ADMIN'" to="/users" class="nav-item">👥 用户管理</router-link>
+      <nav class="nav-menu">
+        <router-link to="/home" class="nav-item">
+          <el-icon><HomeFilled /></el-icon> <span>系统首页</span>
+        </router-link>
 
-        <router-link to="/activities" class="nav-item">🎉 活动管理</router-link>
+        <!-- 管理员专属 -->
+        <template v-if="userRole === 'ADMIN'">
+          <div class="menu-divider">管理中心</div>
+          <router-link to="/databoard" class="nav-item">
+            <el-icon><DataLine /></el-icon> <span>数据大屏</span>
+          </router-link>
+          <router-link to="/users" class="nav-item">
+            <el-icon><User /></el-icon> <span>用户管理</span>
+          </router-link>
+          <router-link to="/registrations" class="nav-item">
+            <el-icon><Tickets /></el-icon> <span>报名审核</span>
+          </router-link>
+          <router-link to="/notices" class="nav-item">
+            <el-icon><Bell /></el-icon> <span>新闻公告</span>
+          </router-link>
+        </template>
+
+        <!-- 通用/志愿者 -->
+        <div class="menu-divider">业务功能</div>
+        <router-link to="/activities" class="nav-item">
+          <el-icon><Flag /></el-icon> <span>志愿活动</span>
+        </router-link>
+        <router-link v-if="userRole === 'VOLUNTEER'" to="/my-records" class="nav-item">
+          <el-icon><Calendar /></el-icon> <span>我的报名</span>
+        </router-link>
       </nav>
     </div>
 
     <!-- 右侧主体 -->
     <div class="main-container">
       <header class="top-header">
-        <span class="breadcrumb">当前位置：{{ $route.name }}</span>
+        <div class="breadcrumb-area">
+          <el-icon color="#909399" style="margin-right: 5px;"><LocationInformation /></el-icon>
+          <span>当前位置：{{ $route.name }}</span>
+        </div>
+
         <div class="user-info">
-          <span>欢迎您，{{ username }}</span>
-          <button @click="handleLogout" class="logout-btn">退出登录</button>
+          <div class="welcome-text">
+            <span>Hi, </span>
+            <span class="user-name">{{ username }}</span>
+            <el-tag size="small" effect="plain" round class="role-tag">
+              {{ userRole === 'ADMIN' ? '管理员' : '志愿者' }}
+            </el-tag>
+          </div>
+
+          <el-button type="primary" plain round size="small" @click="router.push('/profile')" icon="User">
+            个人中心
+          </el-button>
+
+          <el-button type="danger" plain round size="small" @click="handleLogout" icon="SwitchButton" style="margin-left: 10px;">
+            退出
+          </el-button>
         </div>
       </header>
 
       <main class="content">
-        <!-- 路由出口：子页面会在这里渲染 -->
-        <router-view />
+        <!-- 路由出口：增加过渡动画 -->
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
     </div>
-
   </div>
 </template>
 
-
 <script setup>
-import { ref, onMounted, watchEffect } from 'vue'; // 引入 watchEffect
+import { ref, onMounted, watchEffect } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+// 引入图标 (确保已安装 @element-plus/icons-vue)
+import {
+  HomeFilled, DataLine, User, Flag, Calendar,
+  Tickets, Bell, Promotion, LocationInformation,
+  SwitchButton
+} from '@element-plus/icons-vue';
 
 const router = useRouter();
 const route = useRoute();
@@ -43,29 +96,18 @@ const route = useRoute();
 const username = ref('');
 const userRole = ref('');
 
-// 使用函数来重新同步状态
 const syncUserInfo = () => {
   const name = localStorage.getItem('realName');
   const role = localStorage.getItem('role');
 
-  // 打印日志到控制台，用于调试！
-  console.log("当前缓存中的角色:", role);
-  console.log("当前缓存中的姓名:", name);
-
   if (name && role) {
     username.value = name;
-    // 🚨 强制转大写比对，防止大小写坑
     userRole.value = role.toUpperCase();
   } else if (route.path !== '/login') {
     router.push('/login');
   }
 };
 
-onMounted(() => {
-  syncUserInfo();
-});
-
-// 监听路由变化，确保在不同页面间切换时信息是最新的
 watchEffect(() => {
   if (route.path !== '/login') {
     syncUserInfo();
@@ -78,17 +120,118 @@ const handleLogout = () => {
   userRole.value = '';
   router.push('/login');
 };
+
+onMounted(() => {
+  syncUserInfo();
+});
 </script>
 
 <style scoped>
-.admin-layout { display: flex; height: 100vh; background: #f0f2f5; }
-.sidebar { width: 200px; background: #001529; color: white; }
-.logo { padding: 20px; font-size: 18px; font-weight: bold; text-align: center; border-bottom: 1px solid #002140; }
-.nav-item { display: block; padding: 15px 20px; color: #a6adb4; text-decoration: none; }
-.nav-item:hover, .router-link-active { background: #1890ff; color: white; }
+/* 1. 整体布局：背景色改用更柔和的浅灰 */
+.admin-layout {
+  display: flex;
+  height: 100vh;
+  background-color: #f5f7fa;
+}
 
+/* 2. 侧边栏：由深色改为白色，增加阴影，更清爽 */
+.sidebar {
+  width: 220px;
+  background: #ffffff;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+/* Logo 区域：增加品牌色 */
+.logo-container {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #f0f0f0;
+  color: #ff6b6b; /* 志愿红 */
+}
+.logo-icon { font-size: 24px; margin-right: 8px; }
+.logo-text { font-size: 18px; font-weight: bold; color: #333; }
+
+/* 菜单区域 */
+.nav-menu { flex: 1; padding: 10px; overflow-y: auto; }
+
+/* 菜单分组标题 */
+.menu-divider {
+  font-size: 12px;
+  color: #909399;
+  margin: 15px 0 5px 15px;
+}
+
+/* 菜单项：改为圆角卡片风格 */
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  margin-bottom: 5px;
+  color: #606266;
+  text-decoration: none;
+  border-radius: 8px;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.nav-item .el-icon { margin-right: 10px; font-size: 16px; }
+
+/* 悬停效果 */
+.nav-item:hover {
+  background-color: #ffeaea; /* 淡淡的红色背景 */
+  color: #ff6b6b;
+}
+
+/* 选中激活状态：高亮显示 */
+.router-link-active {
+  background: linear-gradient(90deg, #ff6b6b, #ff8787);
+  color: white !important;
+  box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+}
+
+/* 3. 顶部 Header：纯白背景，底部细线 */
 .main-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.top-header { height: 60px; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; box-shadow: 0 1px 4px rgba(0,21,41,.08); }
-.content { flex: 1; padding: 20px; overflow-y: auto; }
-.logout-btn { margin-left: 15px; border: none; background: none; color: #ff4d4f; cursor: pointer; }
+
+.top-header {
+  height: 60px;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.breadcrumb-area {
+  display: flex;
+  align-items: center;
+  color: #606266;
+  font-size: 14px;
+}
+
+.user-info { display: flex; align-items: center; }
+.welcome-text { margin-right: 20px; font-size: 14px; color: #606266; display: flex; align-items: center; }
+.user-name { font-weight: bold; color: #333; margin: 0 5px; }
+.role-tag { margin-left: 5px; }
+
+/* 4. 内容区域 */
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 页面切换动画 (淡入淡出) */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>
