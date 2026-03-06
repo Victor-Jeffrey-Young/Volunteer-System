@@ -55,7 +55,14 @@ const routes = [
                 name: 'DataBoard',
                 component: () => import('../views/DataBoard.vue'),
                 meta: { requiresAdmin: true }
+            },
+            {
+                path: 'honor',
+                name: 'HonorHall',
+                component: () => import('../views/HonorHall.vue')
+                // 注意：不要加 meta: { requiresAdmin: true }，因为志愿者也要看
             }
+
         ]
     }
 ];

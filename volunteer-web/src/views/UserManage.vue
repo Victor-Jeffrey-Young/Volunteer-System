@@ -30,9 +30,25 @@
           style="width: 100%; margin-top: 20px;"
           v-loading="loading"
       >
+        <!-- 1. 新增：头像列 -->
+        <el-table-column label="头像" width="80" align="center">
+          <template #default="scope">
+            <el-avatar :size="40" :src="scope.row.avatar || getDefaultAvatar(scope.row.username)" />
+          </template>
+        </el-table-column>
         <el-table-column prop="userId" label="用户ID" width="80" align="center" />
         <el-table-column prop="username" label="登录账号" width="150" />
         <el-table-column prop="realName" label="真实姓名" width="150" />
+        <!-- 3. 新增：联系方式 (手机/邮箱) -->
+        <el-table-column label="联系方式" width="180">
+          <template #default="scope">
+            <div style="font-size: 12px;">
+              <div v-if="scope.row.phone">📱 {{ scope.row.phone }}</div>
+              <div v-if="scope.row.email">📧 {{ scope.row.email }}</div>
+              <div v-if="!scope.row.phone && !scope.row.email" style="color:#ccc">未填写</div>
+            </div>
+          </template>
+        </el-table-column>
 
         <!-- 角色列使用 Tag 区分颜色 -->
         <el-table-column label="系统角色" width="120" align="center">
@@ -43,9 +59,18 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="累计志愿时长" width="150" align="center">
+        <el-table-column label="志愿等级 & 积分" width="200" align="center">
           <template #default="scope">
-            <span style="color: #67c23a; font-weight: bold;">{{ scope.row.totalHours }} h</span>
+            <!-- 显示段位徽章 -->
+            <el-tag :color="getLevelInfo(scope.row.points).color" effect="dark" style="border:none; color: white;">
+              {{ getLevelInfo(scope.row.points).name }}
+            </el-tag>
+            <!-- 显示具体数据 -->
+            <div style="margin-top: 5px; font-size: 12px; color: #666;">
+              <span>⏱ {{ scope.row.totalHours }}h</span>
+              <el-divider direction="vertical" />
+              <span>💰 {{ scope.row.points }}分</span>
+            </div>
           </template>
         </el-table-column>
 
@@ -109,6 +134,7 @@ import { ref, onMounted } from 'vue';
 import { Search, Refresh } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
+import { getLevelInfo, getDefaultAvatar } from '../utils/levelRules';
 
 // 响应式变量
 const userList = ref([]);

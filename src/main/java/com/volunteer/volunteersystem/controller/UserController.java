@@ -109,6 +109,10 @@ public class UserController {
         updateEntity.setPhone(user.getPhone());
         updateEntity.setGender(user.getGender());
 
+        // 🚨 新增：允许修改邮箱和头像
+        updateEntity.setEmail(user.getEmail());
+        updateEntity.setAvatar(user.getAvatar());
+
         userService.updateById(updateEntity);
         return Result.success("个人资料修改成功");
     }

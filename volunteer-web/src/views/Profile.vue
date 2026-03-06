@@ -7,6 +7,24 @@
 
         <!-- 标签页 1：基本资料 -->
         <el-tab-pane label="基本资料" name="info">
+          <el-form-item label="我的头像">
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <!-- 显示头像 -->
+              <el-avatar :size="60" :src="profileForm.avatar || defaultAvatarUrl" />
+
+              <!-- 修改头像输入框 (实际项目中通常是上传文件，这里简化为填URL) -->
+              <el-input v-model="profileForm.avatar" placeholder="输入头像图片URL" style="width: 300px;">
+                <template #prepend>URL</template>
+              </el-input>
+            </div>
+            <div style="font-size: 12px; color: #999; margin-top: 5px;">
+              提示：如果留空，系统将根据用户名自动生成卡通头像。
+            </div>
+          </el-form-item>
+          <!-- 加入邮箱输入 -->
+          <el-form-item label="电子邮箱">
+            <el-input v-model="profileForm.email" placeholder="example@volunteer.com" />
+          </el-form-item>
           <el-form :model="profileForm" label-width="100px" style="margin-top: 20px;">
             <el-form-item label="登录账号">
               <el-input v-model="profileForm.username" disabled placeholder="账号不可修改" />
@@ -60,6 +78,7 @@ import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import request from '../utils/request';
+import { getDefaultAvatar } from '../utils/levelRules'; // 引入工具
 
 const router = useRouter();
 const activeTab = ref('info');
@@ -79,11 +98,18 @@ const pwdForm = ref({
   confirmPassword: ''
 });
 
-// 初始化：获取个人信息回显
+// 在 setup 中
+const defaultAvatarUrl = ref('');
+
+// 在 fetchUserInfo 获取成功后：
 const fetchUserInfo = async () => {
   try {
     const res = await request.get(`/api/user/info?userId=${userId}`);
     profileForm.value = res.data;
+
+    // 🚨 关键：这里也要用 res.data.username 来生成，保证和导航栏一致
+    defaultAvatarUrl.value = getDefaultAvatar(res.data.username);
+
   } catch (error) {
     console.error(error);
   }

@@ -66,6 +66,8 @@ const handleLogin = async () => {
     localStorage.setItem('token', res.data.token);
     localStorage.setItem('role', res.data.role);     // 这个值必须是 'ADMIN' 或 'VOLUNTEER'
     localStorage.setItem('realName', res.data.realName);
+    localStorage.setItem('points', res.data.points || 0); // 假设后端login返回了points
+    localStorage.setItem('avatar', res.data.avatar || '');
 
     console.log('登录成功，角色为:', res.data.role); // 调试用
 

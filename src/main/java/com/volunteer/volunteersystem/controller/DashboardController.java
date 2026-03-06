@@ -10,6 +10,7 @@ import com.volunteer.volunteersystem.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -82,6 +83,31 @@ public class DashboardController {
                 .orderByAsc("month")
                 .last("LIMIT 6");
         List<Map<String, Object>> list = activityService.listMaps(query);
+        return Result.success(list);
+    }
+
+    // 4. 获取志愿者风采排行榜 (通用接口)
+    // type: "hours" (查时长/年度), "points" (查积分/月度活跃)
+    @GetMapping("/volunteer/rank")
+    public Result<List<Map<String, Object>>> getVolunteerRank(@RequestParam String type) {
+        QueryWrapper<SysUser> query = new QueryWrapper<>();
+
+        // 只查志愿者，且状态正常的
+        query.select("user_id", "username", "real_name", "avatar", "total_hours", "points")
+                .eq("role", "VOLUNTEER")
+                .eq("status", 1);
+
+        if ("hours".equals(type)) {
+            // 按时长倒序 (模拟年度最佳)
+            query.orderByDesc("total_hours");
+        } else {
+            // 按积分倒序 (模拟活跃度)
+            query.orderByDesc("points");
+        }
+
+        query.last("LIMIT 10"); // 取前10名
+
+        List<Map<String, Object>> list = userService.listMaps(query);
         return Result.success(list);
     }
 }

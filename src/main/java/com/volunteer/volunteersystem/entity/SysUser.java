@@ -17,10 +17,14 @@ public class SysUser {
     private String realName;    // 真实姓名
     private Integer gender;     // 性别
     private String phone;       // 手机号
+    private String avatar;      // 头像URL
+    private String email;       // 邮箱
     private String role;        // 角色 (ADMIN/VOLUNTEER)
     private BigDecimal totalHours; // 累计时长
     private Integer points;     // 积分
     private Integer status;     // 状态
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+
 }

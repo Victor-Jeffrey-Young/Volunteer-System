@@ -32,6 +32,9 @@
 
         <!-- 通用/志愿者 -->
         <div class="menu-divider">业务功能</div>
+        <router-link to="/honor" class="nav-item">
+          <el-icon><Trophy /></el-icon> <span>荣誉殿堂</span>
+        </router-link>
         <router-link to="/activities" class="nav-item">
           <el-icon><Flag /></el-icon> <span>志愿活动</span>
         </router-link>
@@ -50,6 +53,22 @@
         </div>
 
         <div class="user-info">
+          <!-- 段位展示 -->
+          <div class="level-badge" v-if="userRole !== 'ADMIN'">
+            <el-tooltip content="这是您的志愿荣誉段位，快去参加活动升级吧！" placement="bottom">
+              <el-tag effect="dark" :color="currentLevel.color" style="border:none; color:white; margin-right: 15px;">
+                {{ currentLevel.name }} ({{ userPoints }}分)
+              </el-tag>
+            </el-tooltip>
+          </div>
+
+          <!-- 头像展示 -->
+          <el-avatar
+              :size="32"
+              :src="userAvatar || defaultAvatar"
+              style="margin-right: 10px; border: 1px solid #ddd;"
+          />
+
           <div class="welcome-text">
             <span>Hi, </span>
             <span class="user-name">{{ username }}</span>
@@ -58,11 +77,11 @@
             </el-tag>
           </div>
 
-          <el-button type="primary" plain round size="small" @click="router.push('/profile')" icon="User">
+          <el-button type="primary" plain round size="small" @click="router.push('/profile')" :icon="User">
             个人中心
           </el-button>
 
-          <el-button type="danger" plain round size="small" @click="handleLogout" icon="SwitchButton" style="margin-left: 10px;">
+          <el-button type="danger" plain round size="small" @click="handleLogout" :icon="SwitchButton" style="margin-left: 10px;">
             退出
           </el-button>
         </div>
@@ -83,36 +102,85 @@
 <script setup>
 import { ref, onMounted, watchEffect } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import request from '../utils/request'; // 引入请求工具
+import { getLevelInfo, getDefaultAvatar } from '../utils/levelRules';
+
 // 引入图标 (确保已安装 @element-plus/icons-vue)
 import {
   HomeFilled, DataLine, User, Flag, Calendar,
   Tickets, Bell, Promotion, LocationInformation,
-  SwitchButton
+  SwitchButton,Trophy
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
 const route = useRoute();
-
+// 响应式变量
 const username = ref('');
 const userRole = ref('');
+const userPoints = ref(0);
+const userAvatar = ref('');
+const currentLevel = ref({});
+const defaultAvatar = ref('');
 
 const syncUserInfo = () => {
   const name = localStorage.getItem('realName');
   const role = localStorage.getItem('role');
+  const points = parseInt(localStorage.getItem('points') || 0);
+  const avatar = localStorage.getItem('avatar');
+  const uName = localStorage.getItem('username') || 'user'; // 用于生成默认头像
 
   if (name && role) {
     username.value = name;
     userRole.value = role.toUpperCase();
+    userPoints.value = points;
+    userAvatar.value = avatar;
+    defaultAvatar.value = getDefaultAvatar(uName);
+    currentLevel.value = getLevelInfo(points);
   } else if (route.path !== '/login') {
     router.push('/login');
   }
 };
 
-watchEffect(() => {
-  if (route.path !== '/login') {
-    syncUserInfo();
+const fetchLatestUserInfo = async () => {
+  const userId = localStorage.getItem('userId');
+  if (!userId) return;
+
+  try {
+    // 调用之前写好的获取个人信息接口
+    const res = await request.get(`/api/user/info?userId=${userId}`);
+    const user = res.data;
+
+    // 1. 更新基础信息
+    username.value = user.realName;
+    userRole.value = user.role;
+    userPoints.value = user.points || 0; // 防止为 null
+
+    // 2. 更新段位 (根据最新积分计算)
+    currentLevel.value = getLevelInfo(userPoints.value);
+
+    // 3. 更新头像 (优先用数据库的，没有则用 username 生成默认的)
+    // 🚨 注意：这里传入 user.username，确保和个人中心一致
+    userAvatar.value = user.avatar || getDefaultAvatar(user.username);
+
+  } catch (error) {
+    console.error("获取用户信息失败", error);
+    // 如果接口失败，回退到读取 localStorage (兜底方案)
+    syncFromLocalStorage();
   }
-});
+};
+
+// 兜底方案：只读缓存
+const syncFromLocalStorage = () => {
+  const name = localStorage.getItem('realName');
+  const role = localStorage.getItem('role');
+  if (name && role) {
+    username.value = name;
+    userRole.value = role;
+    // 缓存里可能没有 points，所以这里只是临时显示
+  } else if (route.path !== '/login') {
+    router.push('/login');
+  }
+};
 
 const handleLogout = () => {
   localStorage.clear();
@@ -121,9 +189,17 @@ const handleLogout = () => {
   router.push('/login');
 };
 
-onMounted(() => {
-  syncUserInfo();
+// 监听路由变化，每次切换页面都刷新一下数据（保证积分变动后导航栏同步更新）
+watchEffect(() => {
+  if (route.path !== '/login') {
+    fetchLatestUserInfo();
+  }
 });
+
+onMounted(() => {
+  fetchLatestUserInfo();
+});
+
 </script>
 
 <style scoped>
