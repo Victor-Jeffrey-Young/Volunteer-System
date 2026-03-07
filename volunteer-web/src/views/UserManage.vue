@@ -7,19 +7,46 @@
         </div>
       </template>
 
-      <!-- 顶部搜索栏 -->
+      <!-- 顶部多维筛选栏 -->
       <div class="toolbar">
+        <!-- 1. 角色筛选 -->
+        <el-select
+            v-model="searchRole"
+            placeholder="全部角色"
+            clearable
+            style="width: 140px; margin-right: 10px;"
+            @change="fetchUserList(1)"
+        >
+          <el-option label="普通志愿者" value="VOLUNTEER" />
+          <el-option label="系统管理员" value="ADMIN" />
+        </el-select>
+
+        <!-- 2. 状态筛选 -->
+        <el-select
+            v-model="searchStatus"
+            placeholder="账号状态"
+            clearable
+            style="width: 140px; margin-right: 10px;"
+            @change="fetchUserList(1)"
+        >
+          <el-option label="✅ 正常" :value="1" />
+          <el-option label="🚫 已封禁" :value="0" />
+        </el-select>
+
+        <!-- 3. 关键词搜索 -->
         <el-input
             v-model="searchName"
-            placeholder="请输入志愿者姓名进行检索"
+            placeholder="搜姓名或账号..."
             clearable
-            style="width: 300px; margin-right: 15px;"
+            style="width: 200px; margin-right: 10px;"
             :prefix-icon="Search"
             @clear="fetchUserList(1)"
             @keyup.enter="fetchUserList(1)"
         />
-        <el-button type="primary" icon="Search" @click="fetchUserList(1)">查 询</el-button>
-        <el-button icon="Refresh" @click="resetSearch">重 置</el-button>
+
+        <!-- 按钮组 -->
+        <el-button type="primary" :icon="Search" @click="fetchUserList(1)">查询</el-button>
+        <el-button :icon="Refresh" @click="resetSearch">重置</el-button>
       </div>
 
       <!-- 高级用户列表 -->
@@ -59,17 +86,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="志愿等级 & 积分" width="200" align="center">
+        <el-table-column label="志愿等级 & 积分资产" width="220" align="center">
           <template #default="scope">
-            <!-- 显示段位徽章 -->
-            <el-tag :color="getLevelInfo(scope.row.points).color" effect="dark" style="border:none; color: white;">
-              {{ getLevelInfo(scope.row.points).name }}
+            <!-- 🚨 必须使用 scope.row.totalPoints 来计算段位 -->
+            <el-tag :color="getLevelInfo(scope.row.totalPoints).color" effect="dark" style="border:none; color: white;">
+              {{ getLevelInfo(scope.row.totalPoints).name }}
             </el-tag>
-            <!-- 显示具体数据 -->
-            <div style="margin-top: 5px; font-size: 12px; color: #666;">
-              <span>⏱ {{ scope.row.totalHours }}h</span>
-              <el-divider direction="vertical" />
-              <span>💰 {{ scope.row.points }}分</span>
+            <div style="margin-top: 5px; font-size: 12px; color: #666; display: flex; justify-content: center; gap: 10px;">
+              <span title="决定段位">🏅累计: {{ scope.row.totalPoints || 0 }}</span>
+              <span title="可用于购物">💰余额: {{ scope.row.currentPoints || 0 }}</span>
             </div>
           </template>
         </el-table-column>
@@ -137,6 +162,8 @@ import request from '../utils/request';
 import { getLevelInfo, getDefaultAvatar } from '../utils/levelRules';
 
 // 响应式变量
+const searchRole = ref('');   // 新增：角色筛选
+const searchStatus = ref(null); // 新增：状态筛选 (注意初始值为 null)
 const userList = ref([]);
 const loading = ref(false); // 表格加载状态
 const searchName = ref('');
@@ -147,30 +174,35 @@ const currentLoginId = ref(null); // 当前登录人的ID，用于防误删
 
 // 获取用户列表 (核心逻辑)
 const fetchUserList = async (page = 1) => {
-  loading.value = true; // 开启加载动画
+  loading.value = true;
   try {
     const res = await request.get('/api/user/page', {
       params: {
         current: page,
         size: pageSize.value,
-        name: searchName.value
+        name: searchName.value,
+        role: searchRole.value,     // 传参
+        status: searchStatus.value  // 传参
       }
     });
     userList.value = res.data.records;
     total.value = res.data.total;
     currentPage.value = res.data.current;
   } catch (error) {
-    console.error("加载用户列表失败", error);
+    console.error("加载失败", error);
   } finally {
-    loading.value = false; // 关闭加载动画
+    loading.value = false;
   }
 };
 
 // 重置搜索
 const resetSearch = () => {
   searchName.value = '';
+  searchRole.value = '';
+  searchStatus.value = null;
   fetchUserList(1);
 };
+
 
 // 切换每页显示数量
 const handleSizeChange = (val) => {

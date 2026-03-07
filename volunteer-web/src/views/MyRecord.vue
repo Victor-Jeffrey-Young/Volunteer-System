@@ -1,4 +1,5 @@
 <template>
+  <div class="record-page-container">
   <div style="padding: 20px;">
     <h2>📅 我的志愿活动记录</h2>
     <el-table :data="myRecords" style="width: 100%; margin-top: 20px;" border stripe>
@@ -14,6 +15,14 @@
           <el-tag :type="getStatusType(scope.row.status)">
             {{ getStatusText(scope.row.status) }}
           </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="rewardPoints" label="获得积分" width="100">
+        <template #default="scope">
+    <span v-if="scope.row.status === 3" style="color: #e6a23c; font-weight: bold;">
+      +{{ scope.row.rewardPoints }}
+    </span>
+          <span v-else style="color: #ccc;">--</span>
         </template>
       </el-table-column>
       <!-- 🚨 审核反馈/拒绝理由列 -->
@@ -68,17 +77,37 @@
       </el-table-column>
     </el-table>
   </div>
+
+  <!-- 手机端专属：扫码签到按钮 -->
+  <div style="margin-top: 20px; text-align: center;">
+    <el-button type="primary" @click="startScan" size="large" round>
+      📷 扫码签到
+    </el-button>
+  </div>
+
+  <!-- 扫码弹窗 -->
+  <el-dialog v-model="scanVisible" title="扫描活动二维码" width="90%" @close="stopScan">
+    <!-- 这里是摄像头的取景框 -->
+    <div id="reader" style="width: 100%;"></div>
+  </el-dialog>
+
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+// 🚨 修复1：补上 nextTick 的引入
+import { ref, onMounted, nextTick } from 'vue';
 import request from '../utils/request';
-import {Clock} from "@element-plus/icons-vue";
+import { Html5Qrcode } from "html5-qrcode";
+// 🚨 修复2：补上 ElMessage 和 Scan 图标的引入
+import { ElMessage } from 'element-plus';
 
 const myRecords = ref([]);
-// 修改状态字典
 const getStatusType = (s) => ({0:'warning', 1:'primary', 2:'danger', 3:'success', 4:'info', 5:'warning', 6:'success'})[s] || 'info';
 const getStatusText = (s) => ({0:'待审核', 1:'待签到', 2:'已拒绝', 3:'流程完结', 4:'已取消', 5:'进行中', 6:'已签退(待结算)'})[s] || '未知';
+
+const scanVisible = ref(false);
+let html5QrCode = null;
 
 // 合并签到与签退请求
 const handleSign = async (regId, type) => {
@@ -97,7 +126,7 @@ const handleCancel = async (regId) => {
   if(confirm('确定要取消此次报名吗？名额将释放。')) {
     const userId = localStorage.getItem('userId');
     await request.put(`/api/reg/cancel?regId=${regId}&userId=${userId}`);
-    fetchMyRecords(); // 刷新
+    fetchMyRecords();
   }
 };
 
@@ -106,6 +135,46 @@ const fetchMyRecords = async () => {
   const userId = localStorage.getItem('userId');
   const res = await request.get(`/api/reg/my?userId=${userId}`);
   myRecords.value = res.data;
+};
+
+// 启动摄像头扫码
+const startScan = async () => {
+  scanVisible.value = true;
+  // 等待弹窗 DOM 渲染完毕，非常关键！
+  await nextTick();
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  // 唤起后置摄像头
+  html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      },
+      (decodedText) => {
+        ElMessage.success(`扫码成功！识别内容：${decodedText}`);
+
+        // 扫码成功后自动关闭摄像头
+        stopScan();
+      },
+      (errorMessage) => {
+        // 扫描进行中，通常忽略这里的错误
+      }
+  ).catch(err => {
+    console.error("摄像头调用失败", err);
+    ElMessage.error('无法调用摄像头，请检查浏览器权限或是否为 HTTPS 环境！');
+  });
+};
+
+// 关闭摄像头
+const stopScan = () => {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      html5QrCode.clear();
+    }).catch(err => console.log(err));
+  }
+  scanVisible.value = false;
 };
 
 onMounted(() => {

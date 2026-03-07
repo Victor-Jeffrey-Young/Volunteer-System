@@ -86,26 +86,26 @@ public class DashboardController {
         return Result.success(list);
     }
 
-    // 4. 获取志愿者风采排行榜 (通用接口)
-    // type: "hours" (查时长/年度), "points" (查积分/月度活跃)
+    // 4. 获取志愿者风采排行榜 (修复版)
     @GetMapping("/volunteer/rank")
     public Result<List<Map<String, Object>>> getVolunteerRank(@RequestParam String type) {
         QueryWrapper<SysUser> query = new QueryWrapper<>();
 
-        // 只查志愿者，且状态正常的
-        query.select("user_id", "username", "real_name", "avatar", "total_hours", "points")
+        // 🚨 核心修复点：
+        // 1. 必须查 'total_points' (因为数据库里points字段没了)
+        // 2. 必须加上 'as points' (起别名)，这样前端 user.points 才能拿到值！
+        query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points")
                 .eq("role", "VOLUNTEER")
                 .eq("status", 1);
 
         if ("hours".equals(type)) {
-            // 按时长倒序 (模拟年度最佳)
             query.orderByDesc("total_hours");
         } else {
-            // 按积分倒序 (模拟活跃度)
-            query.orderByDesc("points");
+            // 这里排序也要用新的字段名 total_points
+            query.orderByDesc("total_points");
         }
 
-        query.last("LIMIT 10"); // 取前10名
+        query.last("LIMIT 10");
 
         List<Map<String, Object>> list = userService.listMaps(query);
         return Result.success(list);

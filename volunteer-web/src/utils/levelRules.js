@@ -7,15 +7,15 @@ export const getLevelInfo = (points) => {
     if (!points) points = 0;
 
     if (points < 100) {
-        return { name: '⭐ 一星志愿者', type: 'info', color: '#909399' }; // 青铜灰
+        return { icon: '⭐', name: '一星志愿者', type: 'info', color: '#909399' };
     } else if (points < 300) {
-        return { name: '🌙 二星志愿者', type: 'success', color: '#67C23A' }; // 森林绿
+        return { icon: '🌙', name: '二星志愿者', type: 'success', color: '#67C23A' };
     } else if (points < 600) {
-        return { name: '☀️ 三星志愿者', type: 'primary', color: '#409EFF' }; // 海洋蓝
+        return { icon: '☀️', name: '三星志愿者', type: 'primary', color: '#409EFF' };
     } else if (points < 1000) {
-        return { name: '💎 钻石志愿者', type: 'warning', color: '#E6A23C' }; // 钻石金
+        return { icon: '💎', name: '钻石志愿者', type: 'warning', color: '#E6A23C' };
     } else {
-        return { name: '👑 荣耀皇冠', type: 'danger', color: '#F56C6C' }; // 王者红
+        return { icon: '👑', name: '荣耀皇冠', type: 'danger', color: '#F56C6C' };
     }
 };
 
@@ -24,7 +24,7 @@ export const getLevelInfo = (points) => {
  * 🚨 关键：必须传入 username (账号)，不要传 realName，因为账号是唯一的且英文的，生成的头像更稳定
  */
 export const getDefaultAvatar = (username) => {
-    // 加上判空，防止 username 为空时头像乱变
     const seed = username || 'default_user';
-    return `https://api.dicebear.com/7.x/miniavs/svg?seed=${seed}`;
+    // 🚨 将 7.x 改为最新的 9.x，避开旧服务器的宕机节点
+    return `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}`;
 };

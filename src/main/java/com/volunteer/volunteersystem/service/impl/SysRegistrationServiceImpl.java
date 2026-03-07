@@ -122,19 +122,24 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     @Transactional(rollbackFor = Exception.class)
     public void grantHours(Long regId, BigDecimal actualHours) {
         SysRegistration reg = this.getById(regId);
-        // 允许对 已签退(6)、已签到忘记签退(5)、甚至刚通过没打卡(1，应对特殊情况) 发放工时
         if (reg == null || (reg.getStatus() != 6 && reg.getStatus() != 5 && reg.getStatus() != 1)) {
             throw new RuntimeException("当前状态无法发放工时");
         }
 
+        // 计算本次应发积分 (假设 1小时 = 10积分)
+        int earnedPoints = actualHours.intValue() * 10;
+
         reg.setStatus(3); // 3-完结
         reg.setActualHours(actualHours);
+        reg.setRewardPoints(earnedPoints); // 🚨 记录本次获得的积分
         this.updateById(reg);
 
         SysUser user = userService.getById(reg.getUserId());
         if (user != null) {
             user.setTotalHours(user.getTotalHours().add(actualHours));
-            user.setPoints(user.getPoints() + actualHours.intValue() * 10);
+            // 🚨 双积分同时增加
+            user.setTotalPoints(user.getTotalPoints() + earnedPoints);
+            user.setCurrentPoints(user.getCurrentPoints() + earnedPoints);
             userService.updateById(user);
         }
     }

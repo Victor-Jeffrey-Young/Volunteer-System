@@ -91,7 +91,14 @@
     <!-- 活动列表展示部分 -->
     <h3 style="margin-top: 30px">🌟 当前活动大厅</h3>
     <el-row :gutter="20">
-      <el-col :span="8" v-for="item in activityList" :key="item.activityId" style="margin-bottom: 20px">
+      <el-col
+          :xs="24"
+          :sm="12"
+          :md="8"
+          v-for="item in activityList"
+          :key="item.activityId"
+          style="margin-bottom: 20px"
+      >
         <el-card :body-style="{ padding: '15px' }" shadow="hover">
           <div style="display: flex; justify-content: space-between; align-items: center">
             <strong style="font-size: 16px; color: #409eff">{{ item.title }}</strong>

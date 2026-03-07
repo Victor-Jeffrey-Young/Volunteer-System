@@ -39,7 +39,8 @@ public class AuthController {
             data.put("username", user.getUsername()); // 🚨 必须返回账号，用于生成固定头像
             data.put("role", user.getRole()); // 🚨 检查这里：user.getRole() 是否有值？
             data.put("userId", user.getUserId()); //
-            data.put("points", user.getPoints());     // 🚨 必须返回积分，用于显示初始段位
+            data.put("totalPoints", user.getTotalPoints());
+            data.put("currentPoints", user.getCurrentPoints());
             data.put("avatar", user.getAvatar());     // 🚨 返回数据库存的头像
             data.put("token", token);
 

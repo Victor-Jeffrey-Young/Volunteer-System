@@ -61,6 +61,24 @@ const routes = [
                 name: 'HonorHall',
                 component: () => import('../views/HonorHall.vue')
                 // 注意：不要加 meta: { requiresAdmin: true }，因为志愿者也要看
+            },
+            {
+                path: 'mall',
+                name: 'PointsMall',
+                component: () => import('../views/PointsMall.vue')
+                // 这个所有人都能看，不用加 meta
+            },
+            {
+                path: 'goods-manage',
+                name: 'GoodsManage',
+                component: () => import('../views/GoodsManage.vue'),
+                meta: { requiresAdmin: true } // 仅管理员可见
+            },
+            {
+                path: 'exchange-audit', // 起个专业点的名字：兑换审计
+                name: 'ExchangeAudit',
+                component: () => import('../views/ExchangeManage.vue'),
+                meta: { requiresAdmin: true }
             }
 
         ]

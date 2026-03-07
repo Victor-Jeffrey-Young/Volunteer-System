@@ -58,7 +58,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setRole("VOLUNTEER"); // 默认角色为普通志愿者
         user.setStatus(1);         // 状态正常
         user.setTotalHours(new java.math.BigDecimal("0.00"));
-        user.setPoints(0);
+        user.setCurrentPoints(0);
+        user.setTotalPoints(0);
 
         // 3. 插入数据库
         this.save(user);

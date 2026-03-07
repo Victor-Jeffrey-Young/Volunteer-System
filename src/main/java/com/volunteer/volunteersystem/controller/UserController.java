@@ -21,33 +21,40 @@ public class UserController {
      * 分页查询用户列表 (管理员使用)
      * URL 示例: /api/user/page?current=1&size=10&name=张三
      */
+    // 分页查询用户列表 (支持多维筛选)
     @GetMapping("/page")
     public Result<Page<SysUser>> getPage(
-            @RequestHeader("Role") String role,
+            @RequestHeader("Role") String roleHeader, // 鉴权用
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String name) { // 🚨 1. 必须在这里接收前端传来的 name 参数
-
-        // 权限判定逻辑
-        if (!"ADMIN".equals(role)) {
-            return Result.error(403, "权限不足，非法操作！");
-        }
+            @RequestParam(required = false) String name,   // 姓名或账号关键词
+            @RequestParam(required = false) String role,   // 筛选角色
+            @RequestParam(required = false) Integer status // 筛选状态
+    ) {
+        if (!"ADMIN".equals(roleHeader)) return Result.error(403, "权限不足");
 
         Page<SysUser> pageInfo = new Page<>(current, size);
-
-        // 🚨 2. 构造 Mybatis-Plus 查询条件包装器
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
 
-        // 如果前端传了 name 且不为空，则拼接 SQL：WHERE real_name LIKE '%name%'
-        // 注意：这里是对真实姓名(realName)进行搜索，如果你想按账号(username)搜索，改成 SysUser::getUsername 即可
-        wrapper.like(StringUtils.hasText(name), SysUser::getRealName, name);
+        // 1. 角色筛选 (如果不为空)
+        wrapper.eq(StringUtils.hasText(role), SysUser::getRole, role);
 
-        // 建议加上：按创建时间倒序，让新注册的用户排在最前面
-        wrapper.orderByDesc(SysUser::getCreateTime);
+        // 2. 状态筛选 (如果不为空)
+        wrapper.eq(status != null, SysUser::getStatus, status);
 
-        // 🚨 3. 将 wrapper 传入 page 方法中！
+        // 3. 智能模糊搜索：输入关键词，同时匹配【账号】或【真实姓名】
+        // SQL效果: AND (real_name LIKE '%xxx%' OR username LIKE '%xxx%')
+        if (StringUtils.hasText(name)) {
+            wrapper.and(w -> w.like(SysUser::getRealName, name)
+                    .or()
+                    .like(SysUser::getUsername, name));
+        }
+
+        // 4. 排序：管理员排前面，同角色按注册时间倒序
+        wrapper.orderByAsc(SysUser::getRole)
+                .orderByDesc(SysUser::getCreateTime);
+
         userService.page(pageInfo, wrapper);
-
         return Result.success(pageInfo);
     }
 
@@ -60,15 +67,6 @@ public class UserController {
         userService.updateById(user);
         return Result.success("状态更新成功");
     }
-
-//    /**
-//     * 修改个人资料
-//     */
-//    @PutMapping("/update")
-//    public Result<String> updateProfile(@RequestBody SysUser user) {
-//        userService.updateById(user);
-//        return Result.success("个人资料修改成功");
-//    }
 
     /**
      * 删除用户
@@ -112,6 +110,10 @@ public class UserController {
         // 🚨 新增：允许修改邮箱和头像
         updateEntity.setEmail(user.getEmail());
         updateEntity.setAvatar(user.getAvatar());
+        updateEntity.setSkills(user.getSkills());
+        updateEntity.setAvailableTime(user.getAvailableTime());
+        updateEntity.setEmail(user.getEmail());
+
 
         userService.updateById(updateEntity);
         return Result.success("个人资料修改成功");

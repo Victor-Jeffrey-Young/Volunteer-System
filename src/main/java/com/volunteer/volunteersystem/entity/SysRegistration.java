@@ -21,6 +21,7 @@ public class SysRegistration {
     private LocalDateTime auditTime;
     private BigDecimal actualHours;
     private String remarks;
+    private Integer rewardPoints;
 
     // 非数据库字段，用于前端连表展示
     @TableField(exist = false)

@@ -20,7 +20,7 @@
         <el-option label="待发工时/已签退 (6)" :value="6" />
       </el-select>
 
-      <el-button type="primary" icon="Search" @click="handleFilter">筛选</el-button>
+      <el-button type="primary" :icon="Search" @click="handleFilter">筛选</el-button>
     </div>
 
     <el-table :data="regList" border stripe style="margin-top: 20px;">
@@ -90,6 +90,8 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
+import {Search} from '@element-plus/icons-vue';
+
 
 const regList = ref([]);
 const dialogVisible = ref(false);
