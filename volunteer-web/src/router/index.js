@@ -91,30 +91,32 @@ const router = createRouter({
 });
 
 // 路由守卫
+// 全局前置路由守卫 - 终极修复版
 router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
 
-    // 1. 如果是去登录页，直接放行（这是退出成功的关键）
+    // 1. 目的地是登录页，直接放行
+    // 无论有没有 token，都允许用户访问登录页
     if (to.path === '/login') {
         next();
-        return;
+        return; // 结束执行
     }
 
-    // 2. 如果没有 token 且不是去登录页，强制去登录
+    // 2. 没有 token，且目的地不是登录页，强制跳转到登录页
     if (!token) {
         next('/login');
-        return;
+        return; // 结束执行
     }
 
-    // 3. 权限判断
+    // 3. 有 token，但想访问管理员专属页面，权限却不够
     if (to.meta.requiresAdmin && role !== 'ADMIN') {
-        alert('权限不足！');
-        next('/home');
-        return;
+        ElMessage.error('权限不足，无法访问该页面！');
+        next(from.path); // 留在原地，或者弹回首页 next('/home');
+        return; // 结束执行
     }
 
-    // 4. 其余情况放行
+    // 4. 其他所有情况（有 token 且权限足够），一律放行
     next();
 });
 

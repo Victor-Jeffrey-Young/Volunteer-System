@@ -3,16 +3,22 @@
     <!-- 顶部：核心数据看板 -->
     <div class="stat-cards">
       <div class="card card-1">
-        <h4>总志愿者人数</h4>
-        <p class="num">{{ stats.volCount }} <span class="unit">人</span></p>
+        <div class="card-content">
+          <h4>总志愿者人数</h4>
+          <p class="num">{{ stats.volCount }} <span class="unit">人</span></p>
+        </div>
       </div>
       <div class="card card-2">
-        <h4>全社区累计志愿时长</h4>
-        <p class="num">{{ stats.totalHours }} <span class="unit">小时</span></p>
+        <div class="card-content">
+          <h4>全社区累计志愿时长</h4>
+          <p class="num">{{ stats.totalHours }} <span class="unit">小时</span></p>
+        </div>
       </div>
       <div class="card card-3">
-        <h4>招募/进行中的活动</h4>
-        <p class="num">{{ stats.activeCount }} <span class="unit">个</span></p>
+        <div class="card-content">
+          <h4>招募/进行中的活动</h4>
+          <p class="num">{{ stats.activeCount }} <span class="unit">个</span></p>
+        </div>
       </div>
     </div>
 
@@ -20,7 +26,7 @@
     <el-card class="notice-card" shadow="hover">
       <template #header>
         <div class="notice-header">
-          <el-icon><Bell /></el-icon>
+          <el-icon color="#f56c6c"><Bell /></el-icon>
           <span>社区新闻与官方通知</span>
         </div>
       </template>
@@ -29,12 +35,11 @@
         <el-collapse-item v-for="(item, index) in noticeList" :key="item.noticeId" :name="index">
           <template #title>
             <div class="collapse-title-box">
-              <el-tag :type="item.type === 1 ? 'danger' : 'success'" size="small" class="type-tag">
+              <el-tag :type="item.type === 1 ? 'danger' : 'success'" size="small" class="type-tag" effect="dark">
                 {{ item.type === 1 ? '通知' : '新闻' }}
               </el-tag>
-              <!-- 这里的 title-text 是核心 -->
               <span class="title-text">{{ item.title }}</span>
-              <span class="time-text">{{ item.createTime.split(' ')[0] }}</span>
+              <span class="time-text">{{ item.createTime.split(' ')[0].substring(5) }}</span> <!-- 手机端只显示月-日 -->
             </div>
           </template>
 
@@ -65,20 +70,14 @@ const fetchStats = async () => {
   try {
     const res = await request.get('/api/dashboard/base');
     stats.value = res.data;
-  } catch (error) {
-    console.error("加载统计数据失败", error);
-  }
+  } catch (error) { console.error(error); }
 };
 
 const fetchNotices = async () => {
   try {
-    const res = await request.get('/api/notice/page', {
-      params: { current: 1, size: 5 }
-    });
+    const res = await request.get('/api/notice/page', { params: { current: 1, size: 5 } });
     noticeList.value = res.data.records;
-  } catch (error) {
-    console.error("加载公告数据失败", error);
-  }
+  } catch (error) { console.error(error); }
 };
 
 onMounted(() => {
@@ -91,7 +90,7 @@ onMounted(() => {
 /* ====================================================
    🖥️ 默认样式 (PC 端)
    ==================================================== */
-.home-container { padding: 10px; }
+.home-container { padding: 15px; }
 
 .stat-cards {
   display: grid;
@@ -108,95 +107,61 @@ onMounted(() => {
 }
 .card:hover { transform: translateY(-5px); }
 
-.card-1 { background: linear-gradient(135deg, #ff6b6b, #ff8787); }
-.card-2 { background: linear-gradient(135deg, #4facfe, #00f2fe); }
-.card-3 { background: linear-gradient(135deg, #667eea, #764ba2); }
+.card-1 { background: linear-gradient(135deg, #ff9a9e, #fecfef); } /* 更柔和的粉红 */
+.card-2 { background: linear-gradient(135deg, #84fab0, #8fd3f4); } /* 更清新的青蓝 */
+.card-3 { background: linear-gradient(135deg, #a18cd1, #fbc2eb); } /* 更优雅的浅紫 */
 
-h4 { margin: 0; font-size: 16px; font-weight: normal; opacity: 0.9; }
-.num { font-size: 32px; font-weight: bold; margin-top: 12px; margin-bottom: 0; }
+.card-content { display: flex; flex-direction: column; }
+h4 { margin: 0; font-size: 16px; font-weight: normal; opacity: 0.9; text-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+.num { font-size: 36px; font-weight: bold; margin-top: 15px; margin-bottom: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .unit { font-size: 14px; font-weight: normal; margin-left: 4px; }
 
-.notice-card { margin-top: 25px; border-radius: 12px; }
+/* 公告模块 */
+.notice-card { margin-top: 20px; border-radius: 12px; border: none; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
 .notice-header { font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 
-.collapse-title-box {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding-right: 15px;
-}
-.type-tag { margin-right: 10px; flex-shrink: 0; }
-.title-text {
-  font-size: 15px;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.collapse-title-box { display: flex; align-items: center; width: 100%; padding-right: 10px; }
+.type-tag { margin-right: 10px; flex-shrink: 0; border: none; }
+.title-text { font-size: 15px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .time-text { color: #999; font-size: 13px; margin-left: 10px; flex-shrink: 0; }
 
-.notice-content {
-  white-space: pre-wrap;
-  color: #606266;
-  line-height: 1.8;
-  padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  font-size: 14px;
-}
-.notice-footer {
-  text-align: right;
-  font-size: 12px;
-  color: #999;
-  margin-top: 8px;
-}
+.notice-content { white-space: pre-wrap; color: #606266; line-height: 1.8; padding: 15px; background: #f8f9fa; border-radius: 8px; font-size: 14px; }
+.notice-footer { text-align: right; font-size: 12px; color: #999; margin-top: 10px; }
 
 /* ====================================================
-   📱 移动端响应式精修
+   📱 移动端响应式适配 (小于 768px)
    ==================================================== */
 @media screen and (max-width: 768px) {
-  /* 1. 强制隐藏主内容区可能出现的滚动条 */
-  .home-container {
-    padding: 10px 5px;
-    overflow-x: hidden;
-  }
+  .home-container { padding: 10px; }
 
-  /* 2. 优化公告卡片标题 */
-  .collapse-title-box {
+  /* 🚨 核心修复 1：强制卡片单列排布，且改为左右结构 */
+  .stat-cards {
     display: flex;
+    flex-direction: column; /* 垂直堆叠 */
+    gap: 12px;
+  }
+
+  .card {
+    padding: 15px 20px;
+    border-radius: 10px;
+  }
+
+  /* 移动端时，标题在左，数字在右 */
+  .card-content {
+    flex-direction: row;
+    justify-content: space-between;
     align-items: center;
-    width: 100%;
-    /* 重点：限制盒子最大宽度，防止撑破 */
-    max-width: calc(100vw - 60px);
-    padding-right: 5px;
   }
 
-  .title-text {
-    font-size: 14px;
-    color: #333;
-    flex: 1; /* 占据剩余所有空间 */
-    /* 🚨 核心三行代码：多出部分显示省略号 */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-right: 8px;
-  }
+  h4 { font-size: 15px; font-weight: bold; }
+  .num { font-size: 24px; margin-top: 0; } /* 移除 margin-top */
+  .unit { font-size: 12px; }
 
-  .time-text {
-    font-size: 11px;
-    color: #999;
-    flex-shrink: 0; /* 禁止时间被压缩 */
+  /* 🚨 核心修复 2：处理公告标题溢出 */
+  .collapse-title-box {
+    max-width: calc(100vw - 70px); /* 减去折叠箭头的宽度，防止撑破屏幕 */
   }
-
-  .type-tag {
-    flex-shrink: 0; /* 禁止标签被压缩 */
-    transform: scale(0.9); /* 手机端稍微缩小一点标签 */
-  }
-
-  /* 3. 统计卡片字号微调，防止大数字溢出 */
-  .num {
-    font-size: 22px;
-    letter-spacing: -0.5px;
-  }
+  .title-text { font-size: 14px; }
+  .time-text { font-size: 12px; }
 }
 </style>

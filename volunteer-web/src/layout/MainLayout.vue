@@ -324,40 +324,44 @@ onMounted(() => {
     display: none !important;
   }
 
-  /* 导航菜单横向均匀排列，允许横向滚动（如果菜单太多） */
-  .nav-menu {
-    display: flex;
-    width: 100%;
-    padding: 0;
-    margin: 0;
-    justify-content: space-around;
-    align-items: center;
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap; /* 防止换行 */
-  }
+  /* 🚨 核心修复 1：导航菜单允许横向滚动，且隐藏滚动条 */
+    .nav-menu {
+      display: flex;
+      width: 100%;
+      padding: 0;
+      margin: 0;
+      justify-content: flex-start; /* 改为从左向右排，而不是 space-around */
+      align-items: center;
+      overflow-x: auto; /* 允许横向滚动 */
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch; /* iOS 滑动顺畅 */
+    }
 
-  /* 隐藏原生滚动条 */
-  .nav-menu::-webkit-scrollbar {
-    display: none;
-  }
+    /* 隐藏原生滚动条 */
+    .nav-menu::-webkit-scrollbar {
+      display: none;
+    }
 
-  /* 菜单项：图标在上，文字在下 */
-  .nav-item {
-    flex-direction: column;
-    padding: 5px 8px;
-    margin: 0;
-    border-radius: 0;
-    font-size: 11px; /* 极小字体 */
-    color: #909399; /* 默认浅灰色 */
-  }
+    /* 🚨 核心修复 2：禁止图标被挤压！ */
+    .nav-item {
+      flex-direction: column;
+      padding: 8px 12px; /* 增加一点点击区域 */
+      margin: 0;
+      border-radius: 0;
+      font-size: 11px;
+      color: #909399;
+      flex-shrink: 0; /* 绝对不能收缩！保持原始宽度 */
+      width: 65px; /* 给每个按钮一个固定宽度 */
+      text-align: center;
+    }
 
-  /* 图标放大 */
-  .nav-item .el-icon {
-    margin-right: 0;
-    margin-bottom: 4px;
-    font-size: 22px;
-  }
+    .nav-item .el-icon {
+      margin-right: 0;
+      margin-bottom: 4px;
+      font-size: 22px;
+    }
+
+
 
   /* 手机端取消 Hover 效果 */
   .nav-item:hover {

@@ -1,9 +1,14 @@
 import axios from 'axios';
 
 // 创建 axios 实例
+// const request = axios.create({
+//     baseURL: 'http://localhost:8081', // 你的后端地址
+//     timeout: 5000 // 请求超时时间
+// });
+
 const request = axios.create({
-    baseURL: 'http://localhost:8081', // 你的后端地址
-    timeout: 5000 // 请求超时时间
+    baseURL: 'http://192.168.1.195:8081', // 🚨 换成你自己的电脑 IP！
+    timeout: 5000
 });
 
 // 请求拦截器（未来这里会自动给请求头加上 token）

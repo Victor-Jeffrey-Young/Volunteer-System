@@ -1,114 +1,173 @@
 <template>
-  <div style="padding: 20px;">
-    <h2>🛒 积分商城商品管理</h2>
+  <div class="goods-manage-container">
+    <el-card shadow="never" class="box-card" :body-style="{ padding: isMobile ? '10px' : '20px' }">
+      <template #header>
+        <div class="card-header">
+          <span style="font-size: 18px; font-weight: bold;">🛒 积分商城商品管理</span>
+        </div>
+      </template>
 
-    <!-- 顶部操作栏 -->
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-      <el-button type="primary" :icon="Plus" @click="openAddDialog">上架新商品</el-button>
-      <!-- 在“上架新商品”按钮旁边增加 -->
-      <el-button type="success" :icon="Checked" @click="verifyVisible = true">核销兑换</el-button>
+      <!-- 顶部操作栏 (响应式) -->
+      <div class="toolbar" :class="{ 'mobile-toolbar': isMobile }">
+        <div class="action-group">
+          <el-button type="primary" :icon="Plus" @click="openAddDialog" class="action-btn">上架商品</el-button>
+          <!-- 之前的核销按钮 -->
+          <el-button type="success" :icon="Checked" @click="verifyVisible = true" class="action-btn">核销兑换</el-button>
+        </div>
 
-      <div style="display: flex;">
-        <el-input
-            v-model="searchName"
-            placeholder="输入商品名称搜索"
-            clearable
-            style="width: 250px; margin-right: 10px;"
-            @clear="fetchGoodsList(1)"
-            @keyup.enter="fetchGoodsList(1)"
-        />
-        <el-button type="primary" :icon="Search" @click="fetchGoodsList(1)">搜索</el-button>
-      </div>
-    </div>
-
-    <!-- 商品列表表格 -->
-    <el-table :data="goodsList" border stripe v-loading="loading">
-      <el-table-column prop="goodsId" label="ID" width="80" align="center" />
-
-      <el-table-column label="商品主图" width="100" align="center">
-        <template #default="scope">
-          <el-image
-              style="width: 50px; height: 50px; border-radius: 4px;"
-              :src="scope.row.image"
-              :preview-src-list="[scope.row.image]"
-              preview-teleported
-              fit="cover"
+        <div class="search-group">
+          <el-input
+              v-model="searchName"
+              placeholder="搜商品名称..."
+              clearable
+              class="search-input"
+              @clear="fetchGoodsList(1)"
+              @keyup.enter="fetchGoodsList(1)"
           >
-            <template #error>
-              <div class="image-slot">
-                <el-icon><Picture /></el-icon>
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+          <el-button :icon="Refresh" circle @click="fetchGoodsList(1)" />
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- 🖥️ PC 端视图：标准表格 -->
+      <!-- ========================================== -->
+      <el-table
+          v-if="!isMobile"
+          :data="goodsList"
+          border
+          stripe
+          style="width: 100%; margin-top: 20px;"
+          v-loading="loading"
+      >
+        <el-table-column prop="goodsId" label="ID" width="70" align="center" />
+
+        <el-table-column label="主图" width="90" align="center">
+          <template #default="scope">
+            <el-image
+                style="width: 50px; height: 50px; border-radius: 4px; border: 1px solid #eee;"
+                :src="scope.row.image"
+                :preview-src-list="[scope.row.image]"
+                preview-teleported
+                fit="cover"
+            >
+              <template #error><div class="image-slot"><el-icon><Picture /></el-icon></div></template>
+            </el-image>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="name" label="商品名称" min-width="180" show-overflow-tooltip />
+
+        <el-table-column label="积分单价" width="120" align="center">
+          <template #default="scope">
+            <span style="color: #e6a23c; font-weight: bold;">{{ scope.row.pointsRequired }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="库存状态" width="120" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.stock > 10 ? 'success' : (scope.row.stock > 0 ? 'warning' : 'danger')" effect="plain">
+              {{ scope.row.stock > 0 ? `余 ${scope.row.stock}` : '已售罄' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="createTime" label="上架时间" width="160" align="center">
+          <template #default="scope">{{ formatTime(scope.row.createTime) }}</template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="180" fixed="right" align="center">
+          <template #default="scope">
+            <el-button size="small" type="primary" plain @click="openEditDialog(scope.row)">编辑</el-button>
+            <el-button size="small" type="danger" plain @click="handleDelete(scope.row.goodsId)">下架</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- ========================================== -->
+      <!-- 📱 移动端视图：电商卡片列表 -->
+      <!-- ========================================== -->
+      <div v-else class="mobile-list" v-loading="loading">
+        <div v-for="item in goodsList" :key="item.goodsId" class="m-goods-card">
+          <!-- 左侧大图 -->
+          <div class="m-img-wrapper">
+            <el-image :src="item.image" class="m-img" fit="cover">
+              <template #error><div class="m-img-error"><el-icon><Picture /></el-icon></div></template>
+            </el-image>
+            <div class="m-id-badge">#{{ item.goodsId }}</div>
+          </div>
+
+          <!-- 右侧信息 -->
+          <div class="m-info">
+            <div class="m-header">
+              <h4 class="m-title">{{ item.name }}</h4>
+              <el-tag :type="item.stock > 0 ? 'success' : 'danger'" size="small" effect="dark">
+                {{ item.stock > 0 ? `库 ${item.stock}` : '售罄' }}
+              </el-tag>
+            </div>
+
+            <div class="m-price">
+              <el-icon><Coin /></el-icon> {{ item.pointsRequired }} 积分
+            </div>
+
+            <div class="m-footer">
+              <span class="m-time">{{ formatTimeShort(item.createTime) }}</span>
+              <div class="m-actions">
+                <el-button size="small" type="primary" plain :icon="Edit" @click="openEditDialog(item)"></el-button>
+                <el-button size="small" type="danger" plain :icon="Delete" @click="handleDelete(item.goodsId)"></el-button>
               </div>
-            </template>
-          </el-image>
-        </template>
-      </el-table-column>
+            </div>
+          </div>
+        </div>
 
-      <el-table-column prop="name" label="商品名称" min-width="150" />
+        <el-empty v-if="goodsList.length === 0" description="暂无商品" />
+      </div>
 
-      <el-table-column label="兑换单价" width="120" align="center">
-        <template #default="scope">
-          <span style="color: #e6a23c; font-weight: bold;">{{ scope.row.pointsRequired }} 积分</span>
-        </template>
-      </el-table-column>
+      <!-- 分页控件 -->
+      <div class="pagination-box" :class="{ 'mobile-pagination': isMobile }">
+        <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :total="total"
+            background
+            :layout="isMobile ? 'total, prev, next' : 'total, prev, pager, next, jumper'"
+            @current-change="fetchGoodsList"
+            :small="isMobile"
+        />
+      </div>
+    </el-card>
 
-      <el-table-column label="当前库存" width="120" align="center">
-        <template #default="scope">
-          <el-tag :type="scope.row.stock > 10 ? 'success' : (scope.row.stock > 0 ? 'warning' : 'danger')">
-            {{ scope.row.stock > 0 ? `剩余 ${scope.row.stock} 件` : '已售罄' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-
-      <el-table-column prop="createTime" label="上架时间" width="170" align="center">
-        <template #default="scope">
-          {{ scope.row.createTime ? scope.row.createTime.replace('T', ' ') : '--' }}
-        </template>
-      </el-table-column>
-
-      <!-- 操作列 -->
-      <el-table-column label="操作" width="180" fixed="right" align="center">
-        <template #default="scope">
-          <el-button size="small" type="primary" plain @click="openEditDialog(scope.row)">编辑/补库</el-button>
-          <el-button size="small" type="danger" plain @click="handleDelete(scope.row.goodsId)">下架</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <!-- 分页器 -->
-    <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
-      <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :total="total"
-          layout="total, prev, pager, next, jumper"
-          @current-change="handleCurrentChange"
-      />
-    </div>
-
-    <!-- 上架/编辑商品弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="550px" destroy-on-close>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+    <!-- 上架/编辑商品弹窗 (响应式) -->
+    <el-dialog
+        v-model="dialogVisible"
+        :title="dialogTitle"
+        :width="isMobile ? '95%' : '600px'"
+        destroy-on-close
+        top="5vh"
+    >
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" label-position="top">
         <el-form-item label="商品名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入商品名称，如：社区纪念水杯" />
+          <el-input v-model="form.name" placeholder="请输入商品名称" />
         </el-form-item>
 
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="所需积分" prop="pointsRequired">
-              <el-input-number v-model="form.pointsRequired" :min="1" :step="10" style="width: 100%;" />
+              <el-input-number v-model="form.pointsRequired" :min="1" :step="10" style="width: 100%;" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="初始库存" prop="stock">
-              <el-input-number v-model="form.stock" :min="0" :step="5" style="width: 100%;" />
+              <el-input-number v-model="form.stock" :min="0" :step="5" style="width: 100%;" controls-position="right" />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <!-- 📷 图片上传项 - 样式精修版 -->
+        <!-- 📷 图片上传项 (适配移动端) -->
         <el-form-item label="商品图片" prop="image">
-          <div class="upload-container">
-            <!-- 左侧：上传组件 -->
+          <div class="upload-container" :class="{ 'mobile-upload': isMobile }">
+            <!-- 上传组件 -->
             <el-upload
                 class="avatar-uploader"
                 action="http://localhost:8080/api/file/upload"
@@ -117,28 +176,22 @@
                 :before-upload="beforeAvatarUpload"
                 name="file"
             >
-              <!-- 有图片时显示图片 -->
               <img v-if="form.image" :src="form.image" class="avatar" />
-              <!-- 没图片时显示加号 -->
               <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-
-              <!-- 悬浮遮罩（可选，增加交互感） -->
-              <div v-if="form.image" class="upload-mask">
-                <span>点击替换</span>
-              </div>
+              <div v-if="form.image" class="upload-mask"><span>替换</span></div>
             </el-upload>
 
-            <!-- 右侧：网络链接输入 & 提示 -->
+            <!-- 链接输入 -->
             <div class="upload-info">
               <el-input
                   v-model="form.image"
-                  placeholder="粘贴网络图片链接，或点击左侧上传"
+                  placeholder="粘贴图片链接"
                   clearable
               >
                 <template #prefix><el-icon><Link /></el-icon></template>
               </el-input>
               <div class="upload-tip">
-                支持 JPG/PNG 格式，建议尺寸 1:1 (如 400x400)，大小不超过 2MB。
+                支持 JPG/PNG，建议 1:1 比例，大小 &lt; 2MB。
               </div>
             </div>
           </div>
@@ -150,20 +203,20 @@
       </el-form>
 
       <template #footer>
-        <span class="dialog-footer">
+        <div class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
           <el-button type="primary" :loading="submitLoading" @click="submitForm">确定保存</el-button>
-        </span>
+        </div>
       </template>
     </el-dialog>
 
-    <!-- 核销弹窗 -->
-    <el-dialog v-model="verifyVisible" title="📦 礼品兑换核销" width="400px">
+    <!-- 核销弹窗 (复用之前的逻辑) -->
+    <el-dialog v-model="verifyVisible" title="📦 礼品兑换核销" :width="isMobile ? '90%' : '400px'">
       <div style="text-align: center;">
-        <p>请输入志愿者出示的兑换码（或扫描二维码）</p>
+        <p>请输入兑换码（或使用扫码枪）</p>
         <el-input
             v-model="verifyCode"
-            placeholder="例如：GIFT-1234-56"
+            placeholder="例如：GIFT-xxx"
             size="large"
             style="margin: 20px 0;"
             clearable
@@ -176,15 +229,18 @@
         <el-button type="primary" @click="submitVerify" :disabled="!verifyCode">确认核销</el-button>
       </template>
     </el-dialog>
-
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Search, Picture,Checked, Scissor } from '@element-plus/icons-vue';
+import { Plus, Search, Picture, Link, Coin, Edit, Delete, Refresh, Checked, Scissor } from '@element-plus/icons-vue';
 import request from '../utils/request';
+
+// --- 响应式判断 ---
+const isMobile = ref(window.innerWidth <= 768);
+const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
 
 const goodsList = ref([]);
 const loading = ref(false);
@@ -192,228 +248,241 @@ const searchName = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
-const verifyVisible = ref(false);
-const verifyCode = ref('');
 
-
-// 弹窗相关
+// 弹窗状态
 const dialogVisible = ref(false);
 const dialogTitle = ref('');
 const submitLoading = ref(false);
+const verifyVisible = ref(false);
+const verifyCode = ref('');
 const formRef = ref(null);
+
 const form = ref({
-  goodsId: null,
-  name: '',
-  description: '',
-  pointsRequired: 100,
-  stock: 10,
-  image: ''
+  goodsId: null, name: '', description: '', pointsRequired: 100, stock: 10, image: ''
 });
 
-// 简单的表单校验规则
 const rules = {
-  name:[{ required: true, message: '商品名称不能为空', trigger: 'blur' }],
-  pointsRequired:[{ required: true, message: '积分价格不能为空', trigger: 'blur' }],
-  stock:[{ required: true, message: '库存不能为空', trigger: 'blur' }]
+  name:[{ required: true, message: '名称必填', trigger: 'blur' }],
+  pointsRequired:[{ required: true, message: '积分必填', trigger: 'blur' }],
+  stock:[{ required: true, message: '库存必填', trigger: 'blur' }]
 };
 
-// 获取列表
+const formatTime = (str) => str ? str.replace('T', ' ') : '--';
+const formatTimeShort = (str) => str ? str.split('T')[0] : '--';
+
 const fetchGoodsList = async (page = 1) => {
+  if (typeof page === 'number') currentPage.value = page;
   loading.value = true;
   try {
     const res = await request.get('/api/shop/admin/page', {
-      params: { current: page, size: pageSize.value, name: searchName.value }
+      params: { current: currentPage.value, size: pageSize.value, name: searchName.value }
     });
     goodsList.value = res.data.records;
     total.value = res.data.total;
-    currentPage.value = res.data.current;
-  } catch (error) {
-    console.error(error);
-  } finally {
-    loading.value = false;
-  }
+  } catch (e) {}
+  finally { loading.value = false; }
 };
 
-const handleCurrentChange = (val) => {
-  fetchGoodsList(val);
-};
-
-// 打开新增弹窗
 const openAddDialog = () => {
-  dialogTitle.value = '🛍️ 上架新商品';
+  dialogTitle.value = '🛍️ 上架商品';
   form.value = { goodsId: null, name: '', description: '', pointsRequired: 100, stock: 10, image: '' };
   dialogVisible.value = true;
 };
 
-// 打开编辑弹窗 (支持补库改价)
 const openEditDialog = (row) => {
-  dialogTitle.value = '✏️ 修改商品信息';
-  form.value = { ...row }; // 深拷贝防止修改取消时污染列表
+  dialogTitle.value = '✏️ 编辑商品';
+  form.value = { ...row };
   dialogVisible.value = true;
 };
 
-// 提交表单
 const submitForm = async () => {
   if (!formRef.value) return;
   await formRef.value.validate(async (valid) => {
     if (valid) {
       submitLoading.value = true;
       try {
-        if (form.value.goodsId) {
-          await request.put('/api/shop/admin/update', form.value);
-          ElMessage.success('商品修改成功');
-        } else {
-          await request.post('/api/shop/admin/add', form.value);
-          ElMessage.success('商品上架成功');
-        }
+        const url = form.value.goodsId ? '/api/shop/admin/update' : '/api/shop/admin/add';
+        const method = form.value.goodsId ? 'put' : 'post';
+        await request[method](url, form.value);
+        ElMessage.success('操作成功');
         dialogVisible.value = false;
-        fetchGoodsList(currentPage.value); // 刷新列表
-      } catch (error) {
-        // 请求拦截器会处理错误
-      } finally {
-        submitLoading.value = false;
-      }
+        fetchGoodsList(currentPage.value);
+      } catch (e) {}
+      finally { submitLoading.value = false; }
     }
   });
 };
 
-// 删除商品
 const handleDelete = (id) => {
-  ElMessageBox.confirm('下架后，志愿者将无法在商城中看到该商品，且无法恢复。是否继续？', '下架确认', {
-    confirmButtonText: '确认下架',
-    cancelButtonText: '取消',
-    type: 'error'
-  }).then(async () => {
-    try {
-      await request.delete(`/api/shop/admin/${id}`);
-      ElMessage.success('下架成功');
-      // 处理当前页只有一条数据被删除的情况
-      if (goodsList.value.length === 1 && currentPage.value > 1) {
-        fetchGoodsList(currentPage.value - 1);
-      } else {
-        fetchGoodsList(currentPage.value);
-      }
-    } catch (error) {}
+  ElMessageBox.confirm('确定下架该商品吗？', '提示', { type: 'warning' }).then(async () => {
+    await request.delete(`/api/shop/admin/${id}`);
+    ElMessage.success('已下架');
+    fetchGoodsList(currentPage.value);
   }).catch(() => {});
 };
 
+// 核销逻辑
 const submitVerify = async () => {
   try {
     await request.post(`/api/shop/admin/verify?code=${verifyCode.value}`);
-    ElMessage.success('核销成功！请发放物品。');
+    ElMessage.success('核销成功');
     verifyVisible.value = false;
     verifyCode.value = '';
-  } catch (e) {
-    // 错误在拦截器处理
-  }
+  } catch (e) {}
 };
 
-// 上传成功的回调
-const handleAvatarSuccess = (response, uploadFile) => {
-  if (response.code === 200) {
-    // 后端返回了完整的 http://localhost:8080/files/xxx.png
-    form.value.image = response.data;
-    ElMessage.success('图片上传成功');
-  } else {
-    ElMessage.error('上传失败');
-  }
+// 图片上传相关
+const handleAvatarSuccess = (res) => {
+  if (res.code === 200) { form.value.image = res.data; ElMessage.success('上传成功'); }
 };
-
-// 上传前的校验 (限制图片大小和格式)
-const beforeAvatarUpload = (rawFile) => {
-  if (rawFile.type !== 'image/jpeg' && rawFile.type !== 'image/png') {
-    ElMessage.error('图片必须是 JPG 或 PNG 格式!');
-    return false;
-  } else if (rawFile.size / 1024 / 1024 > 2) {
-    ElMessage.error('图片大小不能超过 2MB!');
-    return false;
-  }
+const beforeAvatarUpload = (file) => {
+  if (file.size / 1024 / 1024 > 2) { ElMessage.error('图片需小于 2MB'); return false; }
   return true;
 };
 
 onMounted(() => {
   fetchGoodsList();
+  window.addEventListener('resize', handleResize);
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
 <style scoped>
-/* 容器布局：左图右文 */
-.upload-container {
-  display: flex;
-  align-items: flex-start; /* 顶部对齐 */
-  gap: 20px; /* 图片和输入框的间距 */
-  width: 100%;
-}
+/* PC端基础样式 */
+.goods-manage-container { padding: 15px; }
+.box-card { border-radius: 8px; border: none; }
 
-/* 上传组件样式重置 */
-.avatar-uploader {
-  position: relative;
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px dashed var(--el-border-color);
-  border-radius: 6px;
-  transition: var(--el-transition-duration-fast);
-  width: 100px;  /* 固定宽度 */
-  height: 100px; /* 固定高度 */
-  flex-shrink: 0; /* 防止被挤压 */
-}
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.search-group { display: flex; gap: 10px; }
+.action-group { display: flex; gap: 10px; }
+.search-input { width: 250px; }
+.pagination-box { margin-top: 25px; display: flex; justify-content: flex-end; }
 
-.avatar-uploader:hover {
-  border-color: var(--el-color-primary);
-}
+/* 弹窗上传样式 */
+.upload-container { display: flex; align-items: flex-start; gap: 20px; width: 100%; }
+.avatar-uploader { position: relative; overflow: hidden; cursor: pointer; border: 1px dashed #dcdfe6; border-radius: 6px; width: 100px; height: 100px; flex-shrink: 0; }
+.avatar-uploader:hover { border-color: #409eff; }
+.avatar-uploader-icon { font-size: 28px; color: #8c939d; width: 100px; height: 100px; text-align: center; line-height: 100px; }
+.avatar { width: 100%; height: 100%; object-fit: cover; display: block; }
+.upload-mask { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); color: #fff; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; font-size: 12px; }
+.avatar-uploader:hover .upload-mask { opacity: 1; }
+.upload-info { flex: 1; display: flex; flex-direction: column; justify-content: center; height: 100px; }
+.upload-tip { font-size: 12px; color: #909399; margin-top: 8px; }
 
-/* 加号图标样式 */
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 100px;
-  height: 100px;
-  text-align: center;
-  line-height: 100px; /* 垂直居中 */
-}
+.image-slot { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #f5f7fa; color: #909399; }
 
-/* 图片样式 */
-.avatar {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover; /* 保持比例填充，不拉伸变形 */
-}
+/* ====================================================
+   📱 移动端响应式适配 (小于 768px)
+   ==================================================== */
+@media screen and (max-width: 768px) {
+  .goods-manage-container { padding: 5px; }
+  .box-card { border-radius: 0; box-shadow: none !important; }
 
-/* 右侧信息区域 */
-.upload-info {
-  flex: 1; /* 占满剩余空间 */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100px; /* 和图片高度保持一致，视觉更整齐 */
-}
+  /* 顶部工具栏 */
+  .mobile-toolbar {
+    flex-direction: column-reverse;
+    gap: 15px;
+  }
+  .search-group, .action-group { width: 100%; }
+  .search-input { flex: 1; }
+  .action-btn { flex: 1; } /* 两个按钮平分宽度 */
 
-.upload-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 8px;
-  line-height: 1.4;
-}
+  /* 移动端卡片列表 */
+  .mobile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-/* (可选) 图片悬浮时的“点击替换”遮罩效果 */
-.upload-mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-  font-size: 12px;
-}
+  .m-goods-card {
+    background: #fff;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    display: flex; /* 左右结构 */
+    padding: 10px;
+    gap: 12px;
+  }
 
-.avatar-uploader:hover .upload-mask {
-  opacity: 1;
+  /* 左侧大图 */
+  .m-img-wrapper {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+  .m-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    border: 1px solid #f0f0f0;
+  }
+  .m-id-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-top-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+  }
+
+  /* 右侧详情 */
+  .m-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .m-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .m-title {
+    margin: 0;
+    font-size: 15px;
+    color: #333;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .m-price {
+    font-size: 16px;
+    color: #e6a23c;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 5px 0;
+  }
+
+  .m-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .m-time { font-size: 12px; color: #999; }
+  .m-actions { display: flex; gap: 8px; }
+
+  /* 弹窗上传区域适配 */
+  .mobile-upload {
+    flex-direction: column; /* 上下堆叠 */
+    gap: 10px;
+  }
+  .mobile-upload .upload-info {
+    height: auto;
+    width: 100%;
+  }
+
+  .mobile-pagination { justify-content: center; }
 }
 </style>

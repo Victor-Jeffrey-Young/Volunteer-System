@@ -147,5 +147,23 @@ public class UserController {
         return Result.success("密码修改成功，请重新登录");
     }
 
+    /**
+     * 管理员重置指定用户密码为默认值 123456
+     */
+    @PutMapping("/reset-pwd/{id}")
+    public Result<String> resetPassword(@PathVariable Long id, @RequestHeader("Role") String role) {
+        // 安全校验：只有管理员可以重置别人密码
+        if (!"ADMIN".equals(role)) {
+            return Result.error(403, "权限不足，仅管理员可执行此操作");
+        }
+
+        SysUser updateEntity = new SysUser();
+        updateEntity.setUserId(id);
+        updateEntity.setPassword("123456"); // 设置默认密码
+
+        userService.updateById(updateEntity);
+        return Result.success("密码已成功重置为：123456");
+    }
+
 
 }

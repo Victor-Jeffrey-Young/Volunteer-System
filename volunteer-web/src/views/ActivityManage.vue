@@ -1,24 +1,36 @@
 <template>
   <div class="activity-page">
+    <!-- ========================================== -->
+    <!-- 📢 发布区域：仅管理员可见 -->
+    <!-- ========================================== -->
     <el-card class="box-card" v-if="userRole === 'ADMIN'">
       <template #header>
         <div class="card-header">
           <span>📢 发布新的志愿活动</span>
+          <!-- 手机端收起/展开表单的按钮 (优化体验) -->
+          <el-button v-if="isMobile" size="small" text type="primary" @click="showAddForm = !showAddForm">
+            {{ showAddForm ? '收起' : '展开填写' }}
+          </el-button>
         </div>
       </template>
 
-      <!-- 明确的表单设计 -->
-      <el-form :model="newActivity" label-width="100px" label-position="left">
+      <!-- 这里的 v-show 用于手机端折叠，PC端始终显示 -->
+      <el-form
+          v-show="!isMobile || showAddForm"
+          :model="newActivity"
+          :label-width="isMobile ? '80px' : '100px'"
+          :label-position="isMobile ? 'top' : 'left'"
+      >
         <el-row :gutter="20">
-          <!-- 活动标题 -->
-          <el-col :span="12">
+          <!-- 标题：手机占满，PC占一半 -->
+          <el-col :xs="24" :sm="12">
             <el-form-item label="活动标题" required>
               <el-input v-model="newActivity.title" placeholder="例如：社区孤寡老人慰问" />
             </el-form-item>
           </el-col>
 
-          <!-- 活动类型 -->
-          <el-col :span="12">
+          <!-- 类型：手机占满，PC占一半 -->
+          <el-col :xs="24" :sm="12">
             <el-form-item label="活动类型" required>
               <el-select v-model="newActivity.type" placeholder="请选择类型" style="width: 100%">
                 <el-option label="社区服务" value="社区服务" />
@@ -31,47 +43,56 @@
         </el-row>
 
         <el-row :gutter="20">
-          <!-- 活动地点 -->
-          <el-col :span="12">
+          <el-col :xs="24" :sm="12">
             <el-form-item label="活动地点" required>
-              <el-input v-model="newActivity.location" placeholder="具体街道或社区名称" />
+              <el-input v-model="newActivity.location" placeholder="具体街道或社区名称">
+                <template #prefix><el-icon><Location /></el-icon></template>
+              </el-input>
             </el-form-item>
           </el-col>
 
-          <!-- 奖励时长 -->
-          <el-col :span="6">
+          <!-- 手机端：奖励和人数并排显示，各占一半，节省空间 -->
+          <el-col :xs="12" :sm="6">
             <el-form-item label="奖励时长">
-              <el-input-number v-model="newActivity.rewardHours" :precision="1" :step="0.5" :min="0" />
-              <span style="margin-left: 5px">小时</span>
+              <el-input-number
+                  v-model="newActivity.rewardHours"
+                  :precision="1" :step="0.5" :min="0"
+                  style="width: 100%"
+                  :controls="false"
+              />
             </el-form-item>
           </el-col>
 
-          <!-- 招募人数 -->
-          <el-col :span="6">
+          <el-col :xs="12" :sm="6">
             <el-form-item label="招募人数">
-              <el-input-number v-model="newActivity.capacity" :min="1" :max="500" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <!-- 开始与结束时间 -->
-          <el-col :span="12">
-            <el-form-item label="活动时间" required>
-              <el-date-picker
-                  v-model="activityTimeRange"
-                  type="datetimerange"
-                  range-separator="至"
-                  start-placeholder="开始日期"
-                  end-placeholder="结束日期"
-                  value-format="YYYY-MM-DD HH:mm:ss"
-                  @change="handleTimeChange"
+              <el-input-number
+                  v-model="newActivity.capacity"
+                  :min="1" :max="500"
+                  style="width: 100%"
+                  :controls="false"
               />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <!-- 活动内容 -->
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="活动时间" required>
+              <el-date-picker
+                  v-model="activityTimeRange"
+                  type="datetimerange"
+                  range-separator="至"
+                  start-placeholder="开始"
+                  end-placeholder="结束"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  @change="handleTimeChange"
+                  style="width: 100%"
+                  :teleported="false"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-form-item label="活动内容">
           <el-input
               v-model="newActivity.content"
@@ -82,44 +103,60 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" @click="handleAdd">立即发布活动</el-button>
-          <el-button @click="resetForm">重置表单</el-button>
+          <div class="form-btn-group">
+            <el-button type="primary" @click="handleAdd" class="action-btn">立即发布</el-button>
+            <el-button @click="resetForm" class="action-btn">重置</el-button>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 活动列表展示部分 -->
-    <h3 style="margin-top: 30px">🌟 当前活动大厅</h3>
+    <!-- ========================================== -->
+    <!-- 🌟 活动列表展示部分 (保持之前的响应式 Grid) -->
+    <!-- ========================================== -->
+    <h3 class="section-title">🌟 当前活动大厅</h3>
     <el-row :gutter="20">
       <el-col
-          :xs="24"
-          :sm="12"
-          :md="8"
+          :xs="24" :sm="12" :md="8"
           v-for="item in activityList"
           :key="item.activityId"
           style="margin-bottom: 20px"
       >
-        <el-card :body-style="{ padding: '15px' }" shadow="hover">
-          <div style="display: flex; justify-content: space-between; align-items: center">
-            <strong style="font-size: 16px; color: #409eff">{{ item.title }}</strong>
-            <el-tag :type="getActivityStatusTag(item.status)">{{ getActivityStatusText(item.status) }}</el-tag>
+        <el-card :body-style="{ padding: '15px' }" shadow="hover" class="activity-card">
+          <div class="card-top">
+            <strong class="activity-title">{{ item.title }}</strong>
+            <el-tag :type="getActivityStatusTag(item.status)" size="small">
+              {{ getActivityStatusText(item.status) }}
+            </el-tag>
           </div>
-          <p style="font-size: 13px; color: #666">📍 地点：{{ item.location }}</p>
-          <p style="font-size: 13px; color: #666">⏰ 时间：{{ item.startTime.substring(0, 16) }}</p>
-          <div style="display: flex; justify-content: space-between; align-items: center">
-            <span style="font-size: 12px; color: #999">已招募：{{ item.currentNum }}/{{ item.capacity }}</span>
-            <!-- 活动列表中管理员操作区 -->
-            <div v-if="userRole === 'ADMIN'" style="margin-top: 10px;">
+
+          <div class="card-info">
+            <p><el-icon><Location /></el-icon> {{ item.location }}</p>
+            <p><el-icon><Clock /></el-icon> {{ item.startTime.substring(5, 16) }}</p>
+            <p>
+              <el-icon><User /></el-icon> 招募:
+              <span :class="{'full-load': item.currentNum >= item.capacity}">
+                {{ item.currentNum }} / {{ item.capacity }}
+              </span>
+            </p>
+          </div>
+
+          <div class="card-actions">
+            <!-- 管理员操作 -->
+            <div v-if="userRole === 'ADMIN'" class="admin-btns">
               <el-button size="small" type="primary" plain @click="openEdit(item)">修改</el-button>
-              <el-button size="small" type="info" plain @click="viewApplicants(item)">报名名单</el-button>
+              <el-button size="small" type="info" plain @click="viewApplicants(item)">名单</el-button>
               <el-button size="small" type="danger" plain @click="handleDelete(item.activityId)">删除</el-button>
             </div>
-            <div v-else>
+            <!-- 志愿者操作 -->
+            <div v-else class="volunteer-btns">
               <el-button size="small" @click="openDetail(item)">详情</el-button>
-              <!-- 如果 appliedSet 里面有这个活动 ID，就禁用按钮并改字 -->
-              <el-button size="small" :type="appliedSet.has(item.activityId) ? 'info' : 'primary'"
-                         :disabled="appliedSet.has(item.activityId)"
-                         @click="handleApply(item.activityId)">
+              <el-button
+                  size="small"
+                  :type="appliedSet.has(item.activityId) ? 'info' : 'primary'"
+                  :disabled="appliedSet.has(item.activityId)"
+                  @click="handleApply(item.activityId)"
+              >
                 {{ appliedSet.has(item.activityId) ? '已报名' : '立即报名' }}
               </el-button>
             </div>
@@ -128,9 +165,9 @@
       </el-col>
     </el-row>
 
-
-    <!-- 活动详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="志愿活动详情" width="500px">
+    <!-- 活动详情弹窗 (宽度适配) -->
+    <el-dialog v-model="detailVisible" title="志愿活动详情" :width="isMobile ? '95%' : '500px'">
+      <!-- ... 内容保持不变 ... -->
       <div v-if="currentActivity" class="activity-detail-box">
         <h3 style="color: #409eff; margin-top: 0;">{{ currentActivity.title }}</h3>
         <p><strong>📍 活动地点：</strong>{{ currentActivity.location }}</p>
@@ -138,47 +175,45 @@
         <p><strong>⏰ 活动时间：</strong>{{ currentActivity.startTime }} 至 {{ currentActivity.endTime }}</p>
         <p><strong>🎁 奖励工时：</strong>{{ currentActivity.rewardHours }} 小时</p>
         <p><strong>👥 招募进度：</strong>{{ currentActivity.currentNum }} / {{ currentActivity.capacity }} 人</p>
-
         <el-divider border-style="dashed" />
-
         <p><strong>📝 活动内容与要求：</strong></p>
-        <!-- 使用 pre-wrap 保证后端存的换行符能正常显示 -->
-        <div style="background: #f4f4f5; padding: 10px; border-radius: 4px; white-space: pre-wrap; font-size: 14px; color: #606266; line-height: 1.6;">
+        <div class="detail-content">
           {{ currentActivity.content || '暂无详细描述' }}
         </div>
       </div>
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="detailVisible = false">关 闭</el-button>
+          <el-button @click="detailVisible = false">关闭</el-button>
           <el-button type="primary" @click="handleApplyAndClose(currentActivity.activityId)">我要报名</el-button>
         </span>
       </template>
     </el-dialog>
 
-    <!-- 编辑活动弹窗 -->
+    <!-- 📝 修改活动弹窗 (响应式适配版) -->
     <el-dialog
         v-model="editVisible"
         title="📝 修改活动信息"
-        width="650px"
+        :width="isMobile ? '95%' : '700px'"
         destroy-on-close
-        class="custom-dialog"
+        top="5vh"
+        class="edit-dialog"
     >
       <el-form
           :model="editForm"
-          label-width="100px"
-          label-position="right"
-          style="padding: 10px 20px 0 10px"
+          :label-width="isMobile ? '80px' : '100px'"
+          :label-position="isMobile ? 'top' : 'right'"
+          class="edit-form"
       >
-        <!-- 第一行：标题 -->
-        <el-form-item label="活动标题" required>
-          <el-input v-model="editForm.title" placeholder="请输入清晰的活动名称" />
-        </el-form-item>
-
-        <!-- 第二行：类型与状态 -->
-        <el-row :gutter="20">
-          <el-col :span="12">
+        <el-row :gutter="isMobile ? 10 : 20">
+          <!-- 🚨 手机端全部单列显示，不再并排 -->
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="活动标题" required>
+              <el-input v-model="editForm.title" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12">
             <el-form-item label="活动类型" required>
-              <el-select v-model="editForm.type" placeholder="请选择" style="width: 100%">
+              <el-select v-model="editForm.type" style="width: 100%">
                 <el-option label="社区服务" value="社区服务" />
                 <el-option label="环境保护" value="环境保护" />
                 <el-option label="教育助学" value="教育助学" />
@@ -186,9 +221,17 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+        </el-row>
+
+        <el-row :gutter="isMobile ? 10 : 20">
+          <el-col :xs="24" :sm="12">
+            <el-form-item label="活动地点" required>
+              <el-input v-model="editForm.location" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12">
             <el-form-item label="活动状态" required>
-              <el-select v-model="editForm.status" placeholder="请选择" style="width: 100%">
+              <el-select v-model="editForm.status" style="width: 100%">
                 <el-option label="招募中" :value="0" />
                 <el-option label="进行中" :value="1" />
                 <el-option label="已结束" :value="2" />
@@ -198,106 +241,73 @@
           </el-col>
         </el-row>
 
-        <!-- 第三行：地点 -->
-        <el-form-item label="活动地点" required>
-          <el-input v-model="editForm.location" placeholder="请输入详细活动地址">
-            <template #prefix>
-              <el-icon><Location /></el-icon>
-            </template>
-          </el-input>
-        </el-form-item>
-
-        <!-- 第四行：时间范围 -->
-        <el-form-item label="活动时间" required>
-          <el-date-picker
-              v-model="editTimeRange"
-              type="datetimerange"
-              range-separator="至"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              style="width: 100%"
-              @change="handleEditTimeChange"
-          />
-        </el-form-item>
-
-        <!-- 第五行：奖励与人数 -->
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="工时奖励">
-              <el-input-number
-                  v-model="editForm.rewardHours"
-                  :precision="1"
-                  :step="0.5"
-                  :min="0"
-                  controls-position="right"
+        <el-row :gutter="isMobile ? 10 : 20">
+          <el-col :xs="24">
+            <el-form-item label="活动时间" required>
+              <el-date-picker
+                  v-model="editTimeRange"
+                  type="datetimerange"
+                  range-separator="至"
+                  start-placeholder="开始"
+                  end-placeholder="结束"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  @change="handleEditTimeChange"
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="招募人数">
-              <el-input-number
-                  v-model="editForm.capacity"
-                  :min="1"
-                  controls-position="right"
-                  style="width: 100%"
+                  :teleported="false"
               />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <!-- 第六行：详细内容 -->
+        <el-row :gutter="isMobile ? 10 : 20">
+          <el-col :xs="12">
+            <el-form-item label="工时奖励">
+              <el-input-number v-model="editForm.rewardHours" :precision="1" :step="0.5" :min="0" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="12">
+            <el-form-item label="招募人数">
+              <el-input-number v-model="editForm.capacity" :min="1" :controls="false" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-form-item label="详细内容">
-          <el-input
-              v-model="editForm.content"
-              type="textarea"
-              :rows="4"
-              placeholder="请输入活动具体要求、注意事项等信息..."
-              resize="none"
-          />
+          <el-input v-model="editForm.content" type="textarea" :rows="4" />
         </el-form-item>
       </el-form>
 
       <template #footer>
         <div class="dialog-footer">
-          <el-button @click="editVisible = false" round>取 消</el-button>
-          <el-button type="primary" @click="submitEdit" round>保 存 修 改</el-button>
+          <el-button @click="editVisible = false">取 消</el-button>
+          <el-button type="primary" @click="submitEdit">保 存</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- 报名名单弹窗 -->
-    <el-dialog v-model="applicantVisible" :title="'名单 - ' + selectedActivityTitle" width="800px">
-      <!-- 🚨 新增：在表格上方加一个温馨提示，解释数据口径 -->
+    <!-- 报名名单弹窗 (保持原样，宽度已适配) -->
+    <el-dialog v-model="applicantVisible" :title="'名单 - ' + selectedActivityTitle" :width="isMobile ? '95%' : '800px'">
+      <!-- ... 内容保持不变 ... -->
       <div style="margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;">
         <span style="font-size: 13px; color: #606266;">
-          💡 提示：本列表包含所有历史申请记录。被拒绝或已取消的记录不占用活动的“已招募”名额。
+          💡 提示：被拒绝或已取消的记录不占用活动的“已招募”名额。
         </span>
-        <el-tag type="info" effect="plain">
-          总记录数：{{ applicantList.length }} 条
-        </el-tag>
       </div>
       <el-table :data="applicantList" border stripe height="400">
-        <el-table-column prop="realName" label="志愿者姓名" width="120" />
-        <el-table-column prop="applyTime" label="报名时间" width="160" />
-        <el-table-column label="状态" width="120">
+        <el-table-column prop="realName" label="姓名" width="80" />
+        <el-table-column label="状态" width="80">
           <template #default="scope">
-            <el-tag :type="getRegStatusType(scope.row.status)">{{ getRegStatusText(scope.row.status) }}</el-tag>
+            <el-tag :type="getRegStatusType(scope.row.status)" size="small">{{ getRegStatusText(scope.row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="180">
+        <el-table-column prop="applyTime" label="时间" min-width="140" />
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="scope">
-            <!-- 复用审核逻辑 -->
-            <div v-if="scope.row.status === 0">
-              <el-button type="success" size="small" @click="handleAuditInList(scope.row, 1)">通过</el-button>
-              <el-button type="danger" size="small" @click="handleAuditInList(scope.row, 2)">拒绝</el-button>
+            <div v-if="scope.row.status === 0" style="display:flex; gap:5px;">
+              <el-button type="success" size="small" circle :icon="Check" @click="handleAuditInList(scope.row, 1)"></el-button>
+              <el-button type="danger" size="small" circle :icon="Close" @click="handleAuditInList(scope.row, 2)"></el-button>
             </div>
-            <!-- 签退成功后可以发放工时 -->
-            <div v-else-if="[1, 5, 6].includes(scope.row.status)">
-              <el-button type="primary" size="small" @click="handleGrantInList(scope.row)">发放工时</el-button>
-            </div>
-            <span v-else style="color: #999; font-size: 12px;">流程已完结</span>
+            <span v-else style="color:#ccc; font-size:12px">已处理</span>
           </template>
         </el-table-column>
       </el-table>
@@ -307,11 +317,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
-import {Location} from "@element-plus/icons-vue";
+import { Location, Clock, User, Check, Close } from '@element-plus/icons-vue'; // 补全图标引入
 
+// --- 响应式判断 ---
+const isMobile = ref(window.innerWidth <= 768);
+const showAddForm = ref(false); // 手机端默认收起发布表单
+const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
 
 const userRole = localStorage.getItem('role');
 const activityList = ref([]);
@@ -434,10 +448,7 @@ const handleDelete = (id) => {
   });
 };
 
-const getStatusTag = (s) => {
-  const map = { 0: 'success', 1: 'warning', 2: 'info', 3: 'danger' };
-  return map[s] || 'info';
-};
+
 
 const handleApply = async (activityId) => {
   const userId = localStorage.getItem('userId');
@@ -498,14 +509,6 @@ const handleAuditInList = async (row, status) => {
   } catch (e) {}
 };
 
-// 发放工时：你可以选择跳转到专门的审核页面，或者弹窗
-const handleGrantInList = (row) => {
-  // 这里逻辑可以参考之前写的发放工时弹窗逻辑
-  // 为了简单起见，提示用户去“报名审核”菜单操作，或在此复用弹窗
-  ElMessage.info('正在为您准备工时发放...');
-  // 也可以通过 router.push({ path: '/registrations' }) 跳转过去
-};
-
 // --- 1. 活动状态解析 (用于大厅卡片) ---
 const getActivityStatusTag = (s) => {
   const map = { 0: 'success', 1: 'warning', 2: 'info', 3: 'danger' };
@@ -528,5 +531,70 @@ const getRegStatusText = (s) => {
   return map[s] || '未知';
 };
 
-onMounted(fetchActivities);
+onMounted(() => {
+  fetchActivities();
+  window.addEventListener('resize', handleResize);
+});
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+});
 </script>
+
+<style scoped>
+/* 基础样式 */
+.activity-page { padding: 15px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+.section-title { margin: 25px 0 15px; font-size: 18px; color: #303133; border-left: 4px solid #409eff; padding-left: 10px; }
+
+/* 活动卡片样式 */
+.activity-card { border-radius: 8px; border: none; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.activity-title { font-size: 16px; color: #303133; line-height: 1.4; }
+
+.card-info p { margin: 6px 0; color: #606266; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.full-load { color: #f56c6c; font-weight: bold; }
+
+.card-actions { margin-top: 15px; padding-top: 15px; border-top: 1px solid #f0f0f0; }
+.admin-btns, .volunteer-btns { display: flex; justify-content: flex-end; gap: 8px; }
+
+.detail-content { background: #f8f9fa; padding: 10px; border-radius: 4px; white-space: pre-wrap; line-height: 1.6; font-size: 14px; color: #555; }
+
+/* ====================================================
+   📱 移动端响应式适配
+   ==================================================== */
+@media screen and (max-width: 768px) {
+  .activity-page { padding: 5px; }
+
+  /* 1. 发布表单：按钮撑满 */
+  .form-btn-group { display: flex; gap: 10px; }
+  .action-btn { flex: 1; }
+
+  /* 2. 列表卡片：紧凑模式 */
+  .activity-card :deep(.el-card__body) { padding: 12px; }
+  .card-top { margin-bottom: 8px; }
+  .activity-title { font-size: 15px; }
+  .card-info p { font-size: 12px; }
+
+  /* 3. 按钮组：手机上允许换行，或者缩小 */
+  .admin-btns {
+    flex-wrap: wrap;
+  }
+  .admin-btns .el-button {
+    margin-left: 0 !important;
+    margin-right: 5px;
+    margin-bottom: 5px;
+  }
+
+  /* 4. 详情内容 */
+  .detail-content { font-size: 13px; }
+
+  /* 🚨 针对编辑弹窗的内部样式 */
+  .edit-dialog :deep(.el-dialog__body) {
+    padding: 10px 15px; /* 减小内边距 */
+  }
+
+  .edit-form .el-form-item {
+    margin-bottom: 18px; /* 减小表单项之间的垂直间距 */
+  }
+}
+</style>
