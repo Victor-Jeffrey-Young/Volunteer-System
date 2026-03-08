@@ -105,9 +105,10 @@
       </header>
 
       <main class="content">
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component, route }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <!-- 🚨 核心修复：key 绑定 route.path，确保每次切换路径都强制销毁重建组件 -->
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </main>

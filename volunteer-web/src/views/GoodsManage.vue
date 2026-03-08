@@ -210,20 +210,44 @@
       </template>
     </el-dialog>
 
-    <!-- 核销弹窗 (复用之前的逻辑) -->
-    <el-dialog v-model="verifyVisible" title="📦 礼品兑换核销" :width="isMobile ? '90%' : '400px'">
-      <div style="text-align: center;">
-        <p>请输入兑换码（或使用扫码枪）</p>
+    <!-- 核销弹窗 (集成扫码功能) -->
+    <el-dialog
+        v-model="verifyVisible"
+        title="📦 礼品兑换核销"
+        :width="isMobile ? '90%' : '400px'"
+        @close="stopScan"
+        destroy-on-close
+    >
+      <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+
+        <!-- 摄像头取景框 (仅在点击扫码后显示) -->
+        <div v-show="isScanning" id="reader-verify" style="width: 100%; min-height: 250px; background: #000; margin-bottom: 15px; border-radius: 8px; overflow: hidden;"></div>
+
+        <p v-if="!isScanning">请输入兑换码，或点击下方按钮扫码</p>
+
+        <!-- 扫码按钮 -->
+        <el-button
+            v-if="!isScanning"
+            type="warning"
+            size="large"
+            round
+            style="width: 100%; margin-bottom: 20px;"
+            @click="startScan"
+        >
+          启动摄像头扫码
+        </el-button>
+
+        <!-- 手动输入框 (作为备用方案) -->
         <el-input
             v-model="verifyCode"
             placeholder="例如：GIFT-xxx"
             size="large"
-            style="margin: 20px 0;"
             clearable
         >
           <template #prefix><el-icon><Scissor /></el-icon></template>
         </el-input>
       </div>
+
       <template #footer>
         <el-button @click="verifyVisible = false">取消</el-button>
         <el-button type="primary" @click="submitVerify" :disabled="!verifyCode">确认核销</el-button>
@@ -233,10 +257,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'; // 补全 nextTick
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, Picture, Link, Coin, Edit, Delete, Refresh, Checked, Scissor } from '@element-plus/icons-vue';
 import request from '../utils/request';
+import { Html5Qrcode } from "html5-qrcode"; // 引入扫码库
 
 // --- 响应式判断 ---
 const isMobile = ref(window.innerWidth <= 768);
@@ -256,6 +281,11 @@ const submitLoading = ref(false);
 const verifyVisible = ref(false);
 const verifyCode = ref('');
 const formRef = ref(null);
+
+// 扫码相关变量
+const isScanning = ref(false);
+let html5QrCode = null;
+let isProcessing = false; // 防抖锁
 
 const form = ref({
   goodsId: null, name: '', description: '', pointsRequired: 100, stock: 10, image: ''
@@ -321,15 +351,6 @@ const handleDelete = (id) => {
   }).catch(() => {});
 };
 
-// 核销逻辑
-const submitVerify = async () => {
-  try {
-    await request.post(`/api/shop/admin/verify?code=${verifyCode.value}`);
-    ElMessage.success('核销成功');
-    verifyVisible.value = false;
-    verifyCode.value = '';
-  } catch (e) {}
-};
 
 // 图片上传相关
 const handleAvatarSuccess = (res) => {
@@ -338,6 +359,63 @@ const handleAvatarSuccess = (res) => {
 const beforeAvatarUpload = (file) => {
   if (file.size / 1024 / 1024 > 2) { ElMessage.error('图片需小于 2MB'); return false; }
   return true;
+};
+
+// 启动扫码
+const startScan = async () => {
+  isScanning.value = true;
+  isProcessing = false;
+  await nextTick(); // 等待 DOM 渲染
+
+  html5QrCode = new Html5Qrcode("reader-verify"); // 注意 ID 别写错
+
+  html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      async (decodedText) => {
+        // 🚨 防抖逻辑
+        if (isProcessing) return;
+        isProcessing = true;
+
+        // 1. 扫码成功，先播放声音或震动(可选)，然后安全关闭摄像头
+        ElMessage.success('扫码成功！正在核销...');
+        await stopScan();
+
+        // 2. 自动填入并提交
+        verifyCode.value = decodedText;
+        submitVerify();
+      },
+      () => {}
+  ).catch(err => {
+    console.error(err);
+    ElMessage.error('无法调用摄像头，请检查 HTTPS 或 权限');
+    isScanning.value = false;
+  });
+};
+
+// 安全停止扫码
+const stopScan = async () => {
+  if (html5QrCode) {
+    try {
+      if (html5QrCode.isScanning) {
+        await html5QrCode.stop();
+      }
+      html5QrCode.clear();
+    } catch (e) { console.error(e); }
+  }
+  isScanning.value = false;
+};
+
+// 提交核销 (原逻辑保持不变)
+const submitVerify = async () => {
+  if (!verifyCode.value) return;
+  try {
+    await request.post(`/api/shop/admin/verify?code=${verifyCode.value}`);
+    ElMessage.success('核销成功！物品已发放');
+    verifyVisible.value = false;
+    verifyCode.value = '';
+    // 可以在这里刷新一下商品列表(虽然不是必须的)
+  } catch (e) {}
 };
 
 onMounted(() => {

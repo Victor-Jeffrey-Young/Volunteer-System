@@ -77,7 +77,7 @@
                   type="primary"
                   class="submit-btn"
                   :loading="loading"
-                  @click="handleSubmit"
+                  @click.prevent="handleSubmit"
                   round
               >
                 {{ isLoginMode ? '立即登录' : '立即注册' }}

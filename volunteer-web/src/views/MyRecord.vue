@@ -163,6 +163,8 @@ const myRecords = ref([]);
 const loading = ref(false);
 const scanVisible = ref(false);
 let html5QrCode = null;
+// 🚨 新增：防止重复扫码的“防抖锁”
+let isProcessing = false;
 
 // 状态字典
 const getStatusType = (s) => ({0:'warning', 1:'primary', 2:'danger', 3:'success', 4:'info', 5:'warning', 6:'success'})[s] || 'info';
@@ -219,24 +221,81 @@ const handleCancel = (regId) => {
   }).catch(() => {});
 };
 
+// 启动摄像头扫码 (修复内存泄漏与卡死版)
 const startScan = async () => {
   scanVisible.value = true;
+  isProcessing = false; // 每次打开弹窗时，重置锁
   await nextTick();
+
   html5QrCode = new Html5Qrcode("reader");
+
   html5QrCode.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        ElMessage.success(`扫码成功: ${decodedText}`);
-        stopScan();
-        // 这里可以接实际签到逻辑
+
+      // 扫码成功的回调
+      async (decodedText) => {
+        // 🚨 1. 防抖拦截：如果正在处理，直接丢弃同一秒内多余的扫描结果
+        if (isProcessing) return;
+        isProcessing = true; // 上锁！
+
+        // 🚨 2. 安全关闭：必须使用 await 等待摄像头完全关闭，再进行后续操作
+        await stopScan();
+
+        // 3. 业务逻辑处理
+        const scannedActivityId = parseInt(decodedText);
+        if (isNaN(scannedActivityId)) {
+          ElMessage.error('无效的二维码格式！');
+          return;
+        }
+
+        const record = myRecords.value.find(r => r.activityId === scannedActivityId);
+        if (!record) {
+          ElMessage.error('扫码失败：您尚未报名该活动，或申请未通过！');
+          return;
+        }
+
+        // 状态机判断
+        if (record.status === 1) {
+          if (record.activityStatus !== 1) {
+            ElMessage.warning('活动尚未开始或已结束，当前无法签到！');
+          } else {
+            handleSign(record.regId, 'in');
+          }
+        }
+        else if (record.status === 5) {
+          handleSign(record.regId, 'out');
+        }
+        else if (record.status === 6 || record.status === 3) {
+          ElMessage.success('您已经完成了该活动的全部打卡，辛苦了！');
+        }
+        else {
+          ElMessage.error('当前审核状态无法进行打卡操作！');
+        }
       },
-      () => {}
-  ).catch(() => ElMessage.error('无法调用摄像头，请确保使用 HTTPS 或 localhost'));
+      (errorMessage) => { /* 扫描进行中，忽略报错 */ }
+  ).catch(err => {
+    console.error("摄像头调用失败", err);
+    ElMessage.error('无法调用摄像头，请检查浏览器权限或是否为 HTTPS 环境！');
+    scanVisible.value = false;
+  });
 };
 
-const stopScan = () => {
-  if (html5QrCode) html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+// 🚨 修复版：安全关闭摄像头
+const stopScan = async () => {
+  if (html5QrCode) {
+    try {
+      // 检查摄像头是否正在运行
+      if (html5QrCode.isScanning) {
+        // 必须 await，等待底层硬件彻底切断视频流
+        await html5QrCode.stop();
+      }
+      html5QrCode.clear();
+    } catch (err) {
+      console.error("关闭摄像头时发生异常:", err);
+    }
+  }
+  // 必须等摄像头关了，才能让 Vue 销毁 DOM 弹窗
   scanVisible.value = false;
 };
 

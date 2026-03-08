@@ -1,5 +1,5 @@
 <template>
-  <div class="home-container">
+  <div class="home-container" v-loading="loading">
     <!-- 顶部：核心数据看板 -->
     <div class="stat-cards">
       <div class="card card-1">
@@ -39,7 +39,10 @@
                 {{ item.type === 1 ? '通知' : '新闻' }}
               </el-tag>
               <span class="title-text">{{ item.title }}</span>
-              <span class="time-text">{{ item.createTime.split(' ')[0].substring(5) }}</span> <!-- 手机端只显示月-日 -->
+              <!-- 🚨 修复后：加个问号判断，防止报错卡死 -->
+              <span class="time-text">
+                {{ item.createTime ? item.createTime.substring(5, 10) : '--' }}
+              </span>
             </div>
           </template>
 
@@ -58,32 +61,59 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { Bell } from '@element-plus/icons-vue';
 import request from '../utils/request';
+
+const route = useRoute();
 
 const stats = ref({ volCount: 0, totalHours: 0, activeCount: 0 });
 const noticeList = ref([]);
 const activeNames = ref([0]);
+const loading = ref(true); // 增加一个加载状态
 
-const fetchStats = async () => {
+// 封装数据拉取方法
+const loadData = async () => {
+  loading.value = true;
+  stats.value = { volCount: 0, totalHours: 0, activeCount: 0 }; // 强制清空旧数据
+  noticeList.value = [];
+
   try {
-    const res = await request.get('/api/dashboard/base');
-    stats.value = res.data;
-  } catch (error) { console.error(error); }
+    // 使用 Promise.all 并发请求，提高速度
+    const [statsRes, noticeRes] = await Promise.all([
+      request.get('/api/dashboard/base'),
+      request.get('/api/notice/page', { params: { current: 1, size: 5 } })
+    ]);
+
+    stats.value = statsRes.data || { volCount: 0, totalHours: 0, activeCount: 0 };
+    noticeList.value = noticeRes.data?.records || [];
+  } catch (error) {
+    console.error("首页数据加载失败", error);
+  } finally {
+    loading.value = false;
+  }
 };
 
-const fetchNotices = async () => {
-  try {
-    const res = await request.get('/api/notice/page', { params: { current: 1, size: 5 } });
-    noticeList.value = res.data.records;
-  } catch (error) { console.error(error); }
-};
+// --- 生命周期与监听器 ---
 
+// 组件首次挂载时加载
 onMounted(() => {
-  fetchStats();
-  fetchNotices();
+  loadData();
 });
+
+// 🚨 终极修复：监听路由对象本身的变化
+// 只要路由有任何变化（包括参数、哈希），当它变回 /home 时，就强制刷新
+watch(
+    () => route.path,
+    (newPath) => {
+      // 只有在明确切回首页时才触发，防止不必要的重复加载
+      if (newPath === '/home') {
+        loadData();
+      }
+    },
+    { immediate: true } // 立即执行一次，可以替代 onMounted
+);
 </script>
 
 <style scoped>

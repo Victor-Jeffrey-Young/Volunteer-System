@@ -144,6 +144,8 @@
           <div class="card-actions">
             <!-- 管理员操作 -->
             <div v-if="userRole === 'ADMIN'" class="admin-btns">
+              <!-- 🚨 新增：签到码按钮 -->
+              <el-button size="small" color="#722ed1" plain @click="openQrCode(item)">签到码</el-button>
               <el-button size="small" type="primary" plain @click="openEdit(item)">修改</el-button>
               <el-button size="small" type="info" plain @click="viewApplicants(item)">名单</el-button>
               <el-button size="small" type="danger" plain @click="handleDelete(item.activityId)">删除</el-button>
@@ -313,6 +315,21 @@
       </el-table>
     </el-dialog>
 
+    <!-- 🚨 新增：活动签到二维码弹窗 -->
+    <el-dialog v-model="qrVisible" title="📱 活动现场打卡码" :width="isMobile ? '80%' : '350px'" center destroy-on-close>
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 10px 0;">
+        <!-- 显示生成的二维码 Base64 图片 -->
+        <img :src="qrCodeUrl" style="width: 220px; height: 220px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" />
+
+        <p style="color: #409eff; font-weight: bold; margin-top: 20px; font-size: 16px; text-align: center;">
+          {{ currentActivityTitle }}
+        </p>
+        <p style="margin-top: 10px; color: #909399; font-size: 13px; text-align: center; line-height: 1.5;">
+          请志愿者使用系统底部的<br/>【扫码签到】功能扫描此码
+        </p>
+      </div>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -320,7 +337,9 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../utils/request';
-import { Location, Clock, User, Check, Close } from '@element-plus/icons-vue'; // 补全图标引入
+import { Location, Clock, User, Check, Close } from '@element-plus/icons-vue'; // 补全图标引入 🚨
+import QRCode from 'qrcode'; //引入纯 JS 二维码生成库
+
 
 // --- 响应式判断 ---
 const isMobile = ref(window.innerWidth <= 768);
@@ -530,6 +549,31 @@ const getRegStatusText = (s) => {
   const map = { 0: '待审核', 1: '已通过', 2: '已拒绝', 3: '已完结', 4: '已取消', 5: '进行中', 6: '已签退' };
   return map[s] || '未知';
 };
+
+
+// 🚨 新增：二维码相关变量
+const qrVisible = ref(false);
+const qrCodeUrl = ref('');
+const currentActivityTitle = ref('');
+
+// 生成并打开二维码
+const openQrCode = async (item) => {
+  currentActivityTitle.value = item.title;
+  try {
+    // 将 activityId 转换为二维码图片
+    // margin: 2 控制白边，color 控制前景色和背景色
+    qrCodeUrl.value = await QRCode.toDataURL(item.activityId.toString(), {
+      width: 300,
+      margin: 2,
+      color: { dark: '#333333', light: '#ffffff' }
+    });
+    qrVisible.value = true;
+  } catch (err) {
+    console.error(err);
+    ElMessage.error('生成二维码失败');
+  }
+};
+
 
 onMounted(() => {
   fetchActivities();
