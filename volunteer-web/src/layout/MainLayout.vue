@@ -4,7 +4,7 @@
     <div class="sidebar">
       <div class="logo-container">
         <el-icon class="logo-icon"><Promotion /></el-icon>
-        <span class="logo-text">志愿服务管理</span>
+        <span class="logo-text">社区志愿服务管理</span>
       </div>
 
       <nav class="nav-menu">
