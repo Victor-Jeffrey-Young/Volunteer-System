@@ -103,82 +103,99 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { User, Lock, Postcard, Promotion } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
-import request from '../utils/request';
+  /**
+  * Login.vue - 登录与注册模块
+  * 负责系统的统一入口，包含双模式切换、表单正则校验及身份信息本地化存储。
+  */
+  import { ref, reactive } from 'vue';
+  import { useRouter } from 'vue-router';
+  import { User, Lock, Postcard, Promotion } from '@element-plus/icons-vue';
+  import { ElMessage } from 'element-plus';
+  import request from '../utils/request';
 
-const router = useRouter();
-const formRef = ref(null);
-const isLoginMode = ref(true); // true: 登录, false: 注册
-const loading = ref(false);
+  const router = useRouter();
 
-// 表单数据
-const form = reactive({
+  // --- DOM 引用与状态控制 ---
+  const formRef = ref(null);         // 表单 DOM 引用，用于触发验证
+  const isLoginMode = ref(true);     // 视图切换开关: true=登录模式, false=注册模式
+  const loading = ref(false);        // 按钮防抖防重提状态
+
+  // --- 数据模型 ---
+  const form = reactive({
   username: '',
   password: '',
   realName: ''
 });
 
-// 表单校验规则
-const rules = {
-  username: [
-    { required: true, message: '请输入账号', trigger: 'blur' },
-    { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
+  // --- 表单校验规则 (Element Plus 规范) ---
+  const rules = {
+  username:[
+{ required: true, message: '请输入登录账号', trigger: 'blur' },
+{ min: 3, max: 20, message: '账号长度需在 3 到 20 个字符之间', trigger: 'blur' }
   ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于 6 位', trigger: 'blur' }
+  password:[
+{ required: true, message: '请输入安全密码', trigger: 'blur' },
+{ min: 6, message: '为保障安全，密码长度不能少于 6 位', trigger: 'blur' }
   ],
-  realName: [
-    { required: true, message: '请输入真实姓名', trigger: 'blur' }
+  // 真实姓名仅在注册模式下挂载验证
+  realName:[
+{ required: true, message: '请输入真实姓名(用于荣誉证书发放)', trigger: 'blur' }
   ]
 };
 
-// 切换模式
-const toggleMode = () => {
+  /**
+  * 切换 登录/注册 模式
+  * 动作：翻转布尔值，并清空当前表单残留的验证红字报错
+  */
+  const toggleMode = () => {
   isLoginMode.value = !isLoginMode.value;
-  // 清空表单校验状态，避免红字残留
   if (formRef.value) formRef.value.resetFields();
 };
 
-// 提交处理
-const handleSubmit = async () => {
+  /**
+  * 核心提交方法
+  * 业务流：前端校验 -> 开启 Loading -> 发起 HTTP 请求 -> 本地化存储 Session -> 路由推入主页
+  */
+  const handleSubmit = async () => {
   if (!formRef.value) return;
 
+  // 触发全局表单校验
   await formRef.value.validate(async (valid) => {
-    if (valid) {
-      loading.value = true;
-      try {
-        if (isLoginMode.value) {
-          // --- 登录逻辑 ---
-          const res = await request.post('/api/auth/login', form);
+  if (valid) {
+  loading.value = true; // 上锁，防止用户疯狂点击
+  try {
+  if (isLoginMode.value) {
+  /* --- 1. 执行登录流程 --- */
+  const res = await request.post('/api/auth/login', form);
 
-          // 存储全套用户信息
-          localStorage.setItem('token', res.data.token);
-          localStorage.setItem('role', res.data.role);
-          localStorage.setItem('realName', res.data.realName);
-          localStorage.setItem('userId', res.data.userId);
-          localStorage.setItem('username', res.data.username);
-          localStorage.setItem('points', res.data.points || 0);
-          localStorage.setItem('avatar', res.data.avatar || '');
+  // 【关键操作】数据本地化。这些数据将在 MainLayout.vue 挂载时被读取
+  localStorage.setItem('token', res.data.token);
+  localStorage.setItem('role', res.data.role);
+  localStorage.setItem('userId', res.data.userId);
 
-          ElMessage.success(`欢迎回来，${res.data.realName}！`);
-          router.push('/home');
-        } else {
-          // --- 注册逻辑 ---
-          await request.post('/api/auth/register', form);
-          ElMessage.success('注册成功，请登录');
-          toggleMode(); // 自动切回登录
-        }
-      } catch (error) {
-        // request.js 已拦截错误提示
-      } finally {
-        loading.value = false;
-      }
-    }
-  });
+  // 以下数据存入缓存仅作临时展示，后续会通过 fetchLatestUserInfo 刷新
+  localStorage.setItem('realName', res.data.realName);
+  localStorage.setItem('username', res.data.username);
+  localStorage.setItem('points', res.data.points || 0);
+  localStorage.setItem('avatar', res.data.avatar || '');
+
+  ElMessage.success(`欢迎回来，${res.data.realName}！`);
+  router.push('/home'); // 鉴权成功，推入内部系统
+
+} else {
+  /* --- 2. 执行注册流程 --- */
+  await request.post('/api/auth/register', form);
+  ElMessage.success('注册成功，请使用新账号登录');
+  toggleMode(); // 注册成功后，交互降级，自动切回登录视图
+}
+} catch (error) {
+  // HTTP 错误均由 request.js 的全局拦截器处理，此处静默 catch 即可
+  console.error("Auth Exception:", error);
+} finally {
+  loading.value = false; // 解锁按钮
+}
+}
+});
 };
 </script>
 

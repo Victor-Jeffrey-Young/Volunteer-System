@@ -4,36 +4,66 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @TableName("sys_user")
+@Schema(description = "用户信息实体类", name = "SysUser")
 public class SysUser {
     @TableId(type = IdType.AUTO)
-    private Long userId;        // 用户ID
-    private String username;    // 登录账号
-    private String password;    // 登录密码
-    private String realName;    // 真实姓名
-    private Integer gender;     // 性别
-    private String phone;       // 手机号
-    private String avatar;      // 头像URL
-    private String email;       // 邮箱
-    private String role;        // 角色 (ADMIN/VOLUNTEER)
-    private BigDecimal totalHours; // 累计时长
-    // 🚨 修复点：确保这里已经改名为 totalPoints，并使用 @TableField 注解显式映射数据库列名
+    @Schema(description = "用户ID主键", example = "1")
+    private Long userId;
+
+    @Schema(description = "登录账号(唯一)", example = "admin")
+    private String username;
+
+    @Schema(description = "登录密码(前端请勿展示)")
+    private String password;
+
+    @Schema(description = "真实姓名(用于荣誉证书生成)", example = "张三")
+    private String realName;
+
+    @Schema(description = "性别：1-男, 2-女, 0-未知", example = "1")
+    private Integer gender;
+
+    @Schema(description = "联系手机号码", example = "13800000000")
+    private String phone;
+
+    @Schema(description = "电子邮箱", example = "zhangsan@example.com")
+    private String email;
+
+    @Schema(description = "用户头像URL")
+    private String avatar;
+
+    @Schema(description = "系统角色：ADMIN-管理员, VOLUNTEER-志愿者, RESIDENT-居民", example = "VOLUNTEER")
+    private String role;
+
+    @Schema(description = "技能特长(JSON数组字符串)", example = "[\"医疗急救\", \"心理疏导\"]")
+    private String skills;
+
+    @Schema(description = "日常空闲时间段", example = "周末")
+    private String availableTime;
+
+    @Schema(description = "累计志愿服务总时长", example = "12.5")
+    private BigDecimal totalHours;
+
     @TableField("total_points")
+    @Schema(description = "累计荣誉总积分(决定志愿段位，只增不减)", example = "150")
     private Integer totalPoints;
 
-    // 🚨 修复点：确保这里叫 currentPoints，并使用 @TableField 注解显式映射数据库列名
     @TableField("current_points")
+    @Schema(description = "可用消费积分余额(用于商城兑换)", example = "100")
     private Integer currentPoints;
-    private Integer status;     // 状态
-    private String skills; // JSON字符串
-    private String availableTime;
+
+    @Schema(description = "账号状态：1-正常, 0-已封禁", example = "1")
+    private Integer status;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Schema(description = "账号注册时间")
     private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-
-
 }

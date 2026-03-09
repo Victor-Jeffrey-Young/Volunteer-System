@@ -5,7 +5,6 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <!-- 🚨 修改1: Spring Boot 目前最高稳定版是 3.x，没有 4.0.3。请降回 3.2.5 或 3.3.x -->
         <version>3.2.5</version>
         <relativePath/>
     </parent>
@@ -23,10 +22,6 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- 🚨 修改2: 删掉原来的 mybatis-spring-boot-starter (4.0.1那个) -->
-        <!-- 因为你用了 MyBatis-Plus，就不需要原生的 MyBatis Starter 了，否则会产生冲突 -->
-
-        <!-- 🚨 修改3: 保留这个即可，它是专门为 Spring Boot 3 设计的 MyBatis-Plus 启动器 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
@@ -45,7 +40,6 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- JWT 依赖保持不变 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>

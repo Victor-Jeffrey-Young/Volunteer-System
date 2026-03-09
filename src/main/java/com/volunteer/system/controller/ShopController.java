@@ -8,6 +8,8 @@ import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.service.SysExchangeRecordService;
 import com.volunteer.system.service.SysGoodsService;
 import com.volunteer.system.service.SysUserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -17,6 +19,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Tag(name = "积分商城模块")
 @RestController
 @RequestMapping("/api/shop")
 public class ShopController {
@@ -29,7 +32,6 @@ public class ShopController {
     public Result<List<SysGoods>> listGoods() {
         return Result.success(goodsService.list());
     }
-
     @PostMapping("/exchange")
     @Transactional(rollbackFor = Exception.class)
     public Result<String> exchange(@RequestParam Long userId, @RequestParam Long goodsId) {
@@ -66,13 +68,13 @@ public class ShopController {
         return Result.success("兑换成功！请凭兑换码 [" + code + "] 到服务中心领取。");
     }
 
-
     // ==========================================
     //  管理员端商品管理接口
     // ==========================================
     /**
      * 1. 分页查询商品列表 (管理员用)
      */
+    @Operation(summary = "分页查询商品列表（admin）")
     @GetMapping("/admin/page")
     public Result<Page<SysGoods>> getGoodsPage(
             @RequestHeader("Role") String role,
@@ -94,6 +96,7 @@ public class ShopController {
     /**
      * 2. 新增商品上架
      */
+
     @PostMapping("/admin/add")
     public Result<String> addGoods(@RequestBody SysGoods goods, @RequestHeader("Role") String role) {
         if (!"ADMIN".equals(role)) return Result.error(403, "权限不足");
