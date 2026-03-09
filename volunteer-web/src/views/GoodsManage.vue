@@ -170,7 +170,8 @@
             <!-- 上传组件 -->
             <el-upload
                 class="avatar-uploader"
-                action="http://localhost:8080/api/file/upload"
+                action="/api/file/upload"
+                :headers="uploadHeaders"
                 :show-file-list="false"
                 :on-success="handleAvatarSuccess"
                 :before-upload="beforeAvatarUpload"
@@ -290,6 +291,12 @@ let isProcessing = false; // 防抖锁
 const form = ref({
   goodsId: null, name: '', description: '', pointsRequired: 100, stock: 10, image: ''
 });
+
+// 🚨 新增：让 el-upload 也能携带 Token 和角色，穿透后端的拦截器
+const uploadHeaders = {
+  Authorization: 'Bearer ' + localStorage.getItem('token'),
+  Role: localStorage.getItem('role')
+};
 
 const rules = {
   name:[{ required: true, message: '名称必填', trigger: 'blur' }],

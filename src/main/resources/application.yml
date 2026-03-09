@@ -43,3 +43,5 @@ springdoc:
     # 原生 Swagger UI 路径 (访问地址: /swagger-ui.html)
     # 注意：集成 Knife4j 后，通常访问 /doc.html 体验更好
     path: /swagger-ui.html
+    tags-sorter: alpha       # 将左侧的标签（Controller模块）按字母数字顺序排序
+    operations-sorter: alpha # 将模块内部的具体接口也按字母顺序排序（可选）
