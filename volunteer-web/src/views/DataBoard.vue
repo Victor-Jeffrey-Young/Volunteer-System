@@ -5,26 +5,31 @@
       <p>多维数据全景分析，助力社区智慧治理</p>
     </div>
 
-    <!-- 第一排：饼图和柱状图 -->
+    <!--
+      第一排图表区：使用 Element Plus 栅格系统
+      - PC 端 (md): 饼图占 10 份，柱状图占 14 份
+      - 移动端 (xs, sm): 强制占满 24 份，实现上下堆叠布局
+    -->
     <el-row :gutter="20">
       <!-- 饼图：活动类型占比 -->
       <el-col :xs="24" :sm="24" :md="10" class="chart-col">
         <el-card shadow="hover" class="chart-card">
           <template #header><div class="card-title">🍩 活动类型分布占比</div></template>
+          <!-- 图表挂载点，必须设置宽高 -->
           <div ref="pieChartRef" class="chart-box"></div>
         </el-card>
       </el-col>
 
-      <!-- 柱状图：志愿标兵排行榜 -->
+      <!-- 柱状/条形图：志愿标兵排行榜 -->
       <el-col :xs="24" :sm="24" :md="14" class="chart-col">
         <el-card shadow="hover" class="chart-card">
-          <template #header><div class="card-title">🏆 志愿服务时长 TOP 5</div></template>
+          <template #header><div class="card-title">🏆 志愿服务时长 TOP 10</div></template>
           <div ref="barChartRef" class="chart-box"></div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 第二排：折线图 -->
+    <!-- 第二排图表区：折线图 -->
     <el-row :gutter="20">
       <el-col :xs="24" :sm="24" :md="24" class="chart-col">
         <el-card shadow="hover" class="chart-card">
@@ -37,32 +42,41 @@
 </template>
 
 <script setup>
+/**
+ * 社区数据看板模块 (DataBoard.vue)
+ * 核心功能：通过 ECharts 渲染后端聚合数据，支持跨终端的响应式自适应布局。
+ */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import request from '../utils/request';
 
-// DOM 引用
+// --- DOM 元素引用 ---
 const pieChartRef = ref(null);
 const barChartRef = ref(null);
 const lineChartRef = ref(null);
 
-// ECharts 实例
+// --- ECharts 实例对象 (用于后续的 resize 和销毁) ---
 let pieChart = null;
 let barChart = null;
 let lineChart = null;
 
-// 响应式状态判断
+// --- 响应式状态判断 ---
+// 初始化判断当前设备是否为移动端 (屏幕宽度 <= 768px)
 const isMobile = ref(window.innerWidth <= 768);
 
-// 1. 渲染饼状图
+/**
+ * 1. 渲染活动类型饼图
+ * 业务逻辑：拉取各类型活动的总数，绘制空心环形图
+ */
 const renderPieChart = async () => {
   try {
     const res = await request.get('/api/dashboard/typePie');
     if (!pieChartRef.value) return;
+
     pieChart = echarts.init(pieChartRef.value);
     pieChart.setOption({
       tooltip: { trigger: 'item', formatter: '{b}: {c}个 ({d}%)' },
-      // 手机端图例放在底部，PC端靠左
+      // 响应式优化：移动端图例放在底部居中，PC 端靠左
       legend: {
         bottom: '0',
         left: 'center',
@@ -73,69 +87,88 @@ const renderPieChart = async () => {
       series:[{
         name: '活动类型',
         type: 'pie',
-        // 手机端适当缩小环形图半径，留出空间给文字
-        radius: isMobile.value ? ['35%', '60%'] : ['40%', '70%'],
-        center:['50%', '45%'], // 整体稍微往上挪一点，给底部图例让位
+        // 响应式优化：移动端缩小外半径防止文字被截断
+        radius: isMobile.value ? ['35%', '60%'] :['40%', '70%'],
+        center: ['50%', '45%'], // 整体中心点上移，给底部的图例让出空间
         avoidLabelOverlap: true,
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
         label: { show: false, position: 'center' },
-        emphasis: { label: { show: true, fontSize: isMobile.value ? '16' : '20', fontWeight: 'bold' } },
+        emphasis: {
+          label: { show: true, fontSize: isMobile.value ? '16' : '20', fontWeight: 'bold' }
+        },
         data: res.data
       }]
     });
-  } catch (e) { console.error("饼图加载失败", e); }
+  } catch (e) {
+    console.error("饼图加载失败", e);
+  }
 };
 
-// 2. 渲染柱状图
+/**
+ * 2. 渲染志愿服务时长排行榜
+ * 业务逻辑：获取 Top 10 用户时长，绘制横向条形图以解决长姓名重叠问题
+ */
 const renderBarChart = async () => {
   try {
     const res = await request.get('/api/dashboard/rank');
-    const names = res.data.map(item => item.name);
-    const hours = res.data.map(item => item.value);
+    // 横向条形图的数据排序是从下往上画的，所以需要将后端降序的数据 reverse 反转，保证第1名在最顶端
+    const names = res.data.map(item => item.name).reverse();
+    const hours = res.data.map(item => item.value).reverse();
 
     if (!barChartRef.value) return;
+
     barChart = echarts.init(barChartRef.value);
     barChart.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      // 手机端缩小边距，最大化图表区域
+      // 动态间距：预留左侧空间显示人名
       grid: {
-        left: isMobile.value ? '2%' : '3%',
-        right: isMobile.value ? '5%' : '4%',
-        bottom: '3%',
-        top: '15%',
-        containLabel: true
+        left: '2%', right: '6%', bottom: '3%', top: '5%', containLabel: true
       },
       xAxis: {
+        type: 'value',
+        name: '小时',
+        splitLine: { show: false } // 保持图表清爽，隐藏背景网格线
+      },
+      yAxis: {
         type: 'category',
         data: names,
-        axisTick: { alignWithLabel: true },
+        axisTick: { show: false }, // 隐藏 Y 轴刻度线
         axisLabel: {
-          // 手机端如果名字太长，倾斜显示防止重叠
-          interval: 0,
-          rotate: isMobile.value ? 30 : 0,
-          fontSize: isMobile.value ? 10 : 12
+          fontWeight: 'bold',
+          color: '#555'
         }
       },
-      yAxis: { type: 'value', name: '小时' },
       series:[{
         name: '累计时长',
         type: 'bar',
-        barWidth: isMobile.value ? '30%' : '40%', // 手机端柱子细一点
+        barWidth: '50%', // 柱子宽度比例
         itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1,[
-            { offset: 0, color: '#83bff6' },
-            { offset: 0.5, color: '#188df0' },
-            { offset: 1, color: '#188df0' }
+          // 渐变色配置：自左向右渐变
+          color: new echarts.graphic.LinearGradient(1, 0, 0, 0,[
+            { offset: 0, color: '#188df0' },
+            { offset: 1, color: '#83bff6' }
           ]),
-          borderRadius: [4, 4, 0, 0]
+          borderRadius: [0, 4, 4, 0] // 仅右侧圆角
+        },
+        // 在柱子末尾直接显示数值，增强可读性
+        label: {
+          show: true,
+          position: 'right',
+          color: '#188df0',
+          fontWeight: 'bold'
         },
         data: hours
       }]
     });
-  } catch (e) { console.error("柱状图加载失败", e); }
+  } catch (e) {
+    console.error("条形图加载失败", e);
+  }
 };
 
-// 3. 渲染折线图
+/**
+ * 3. 渲染近期活动开展趋势图
+ * 业务逻辑：获取近半年每月的活动发布数量，绘制平滑的面积折线图
+ */
 const renderLineChart = async () => {
   try {
     const res = await request.get('/api/dashboard/trend');
@@ -143,6 +176,7 @@ const renderLineChart = async () => {
     const counts = res.data.map(item => item.count);
 
     if (!lineChartRef.value) return;
+
     lineChart = echarts.init(lineChartRef.value);
     lineChart.setOption({
       tooltip: { trigger: 'axis' },
@@ -155,16 +189,20 @@ const renderLineChart = async () => {
       },
       xAxis: {
         type: 'category',
-        boundaryGap: false,
+        boundaryGap: false, // 让折线从 Y 轴起点开始，无两端留白
         data: months,
         axisLabel: { fontSize: isMobile.value ? 10 : 12 }
       },
-      yAxis: { type: 'value', name: '场次' },
+      yAxis: {
+        type: 'value',
+        name: '场次'
+      },
       series:[{
         name: '活动数量',
         type: 'line',
-        smooth: true,
+        smooth: true, // 开启平滑曲线
         areaStyle: {
+          // 曲线下方填充半透明渐变色，提升视觉冲击力
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1,[
             { offset: 0, color: 'rgba(84,112,198,0.5)' },
             { offset: 1, color: 'rgba(84,112,198,0.1)' }
@@ -174,31 +212,43 @@ const renderLineChart = async () => {
         data: counts
       }]
     });
-  } catch (e) { console.error("折线图加载失败", e); }
+  } catch (e) {
+    console.error("折线图加载失败", e);
+  }
 };
 
-// 窗口尺寸变化监听
+/**
+ * 窗口尺寸变化监听函数
+ * 作用：当用户改变浏览器窗口大小，或手机横竖屏切换时，触发图表重绘
+ */
 const handleResize = () => {
   isMobile.value = window.innerWidth <= 768;
-  // 调用 ECharts 自带的 resize 方法重新计算图表尺寸
+  // 必须调用 ECharts 实例的 resize() 方法才能实现自适应
   if (pieChart) pieChart.resize();
   if (barChart) barChart.resize();
   if (lineChart) lineChart.resize();
 };
 
+// --- 生命周期管理 ---
+
 onMounted(async () => {
-  // 保证 DOM 渲染完成后再初始化图表
+  // 使用 nextTick 确保包含了 ECharts 容器的 DOM 已完全渲染完毕
   await nextTick();
+
+  // 异步并发或依次渲染图表
   renderPieChart();
   renderBarChart();
   renderLineChart();
 
+  // 挂载窗口缩放监听器
   window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
+  // 组件卸载时，务必移除全局监听器，防止内存泄漏
   window.removeEventListener('resize', handleResize);
-  // 销毁实例释放内存
+
+  // 销毁 ECharts 实例，释放 WebGL/Canvas 资源
   if (pieChart) pieChart.dispose();
   if (barChart) barChart.dispose();
   if (lineChart) lineChart.dispose();
@@ -243,14 +293,14 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-/* PC 端图表高度 */
+/* PC 端图表固定高度 */
 .chart-box {
   height: 350px;
   width: 100%;
 }
 
 /* ====================================================
-   📱 移动端响应式适配 (小于 768px)
+   📱 移动端响应式适配 (屏幕宽度 <= 768px 时生效)
    ==================================================== */
 @media screen and (max-width: 768px) {
   .databoard-container {
@@ -265,7 +315,7 @@ onUnmounted(() => {
     margin-bottom: 15px;
   }
 
-  /* 减小卡片的内边距，留给图表更多空间 */
+  /* 减小卡片的内边距，将更多的屏幕空间留给数据图表 */
   .chart-card :deep(.el-card__body) {
     padding: 10px;
   }
@@ -277,7 +327,7 @@ onUnmounted(() => {
     font-size: 14px;
   }
 
-  /* 移动端图表高度稍微压扁一点，防止占据整个屏幕需要频繁滑动 */
+  /* 移动端图表高度稍微压扁一点，防止图表占据整个屏幕，减少用户的滑动疲劳 */
   .chart-box {
     height: 280px;
   }
