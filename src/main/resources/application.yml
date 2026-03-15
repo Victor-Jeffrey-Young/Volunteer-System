@@ -4,8 +4,13 @@
 # ===================================================================
 
 server:
-  # 应用服务端口。若遇到 "Address already in use" 错误，请修改此处
+  # 应用服务端口
   port: 8081
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 spring:
   datasource:
@@ -15,7 +20,7 @@ spring:
     # 注意：127.0.0.1 比 localhost 在某些环境下解析更稳定
     url: jdbc:mysql://127.0.0.1:3306/volunteer_db?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8
     username: root
-    password: 123456
+    password: 910059262
 
 mybatis-plus:
   configuration:

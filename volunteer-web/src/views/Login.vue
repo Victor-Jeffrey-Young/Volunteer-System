@@ -254,7 +254,7 @@
 /* --- 左侧区域 --- */
 .login-left {
   flex: 1.1;
-  background: url('https://source.unsplash.com/featured/800x600/?volunteer,community') center/cover no-repeat;
+  background: url('https://picsum.photos/800/600?grayscale&blur=2') center/cover no-repeat;
   position: relative;
   display: flex;
   align-items: center;

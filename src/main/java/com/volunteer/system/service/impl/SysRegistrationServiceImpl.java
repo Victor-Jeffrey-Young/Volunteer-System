@@ -2,6 +2,7 @@ package com.volunteer.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.entity.SysRegistration;
 import com.volunteer.system.entity.SysUser;
@@ -31,8 +32,8 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     @Transactional(rollbackFor = Exception.class)
     public void applyActivity(Long userId, Long activityId) {
         SysActivity activity = activityService.getById(activityId);
-        if (activity == null || activity.getStatus() != 0) throw new RuntimeException("活动不存在或已停止招募");
-        if (activity.getCurrentNum() >= activity.getCapacity()) throw new RuntimeException("名额已满！");
+        if (activity == null || activity.getStatus() != 0) throw new ServiceException(404, "活动不存在或已停止招募");
+        if (activity.getCurrentNum() >= activity.getCapacity()) throw new ServiceException(400, "名额已满！");
 
         // 🚨 修复问题2：不再使用 getOne，而是只拦截那些“正在进行中”的状态 (0,1,3,5)
         LambdaQueryWrapper<SysRegistration> query = new LambdaQueryWrapper<>();
@@ -41,7 +42,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
                 .in(SysRegistration::getStatus, 0, 1, 3, 5); // 排除 2(拒绝) 和 4(取消)
 
         if (this.count(query) > 0) {
-            throw new RuntimeException("您当前已有该活动的有效报名，请勿重复操作！");
+            throw new ServiceException(409, "您当前已有该活动的有效报名，请勿重复操作！");
         }
 
         // 每次报名都插入一条【新】记录，保留失败历史
@@ -61,7 +62,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     @Transactional(rollbackFor = Exception.class)
     public void cancelRegistration(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new RuntimeException("非法操作");
+        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
         if (reg.getStatus() == 0 || reg.getStatus() == 1) {
             reg.setStatus(4); // 4-已取消
             this.updateById(reg);
@@ -71,34 +72,34 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
             activity.setCurrentNum(activity.getCurrentNum() - 1);
             activityService.updateById(activity);
         } else {
-            throw new RuntimeException("当前状态无法取消报名");
+            throw new ServiceException(400, "当前状态无法取消报名");
         }
     }
 
     // 1. 签到打卡 (开始)
     public void signIn(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new RuntimeException("非法操作");
+        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
 
         // 1. 校验报名状态
-        if (reg.getStatus() != 1) throw new RuntimeException("只有【审核通过】的状态才能签到");
+        if (reg.getStatus() != 1) throw new ServiceException(400, "只有【审核通过】的状态才能签到");
 
         // 2. 🚨 新增：校验活动状态和时间
         SysActivity activity = activityService.getById(reg.getActivityId());
-        if (activity == null) throw new RuntimeException("活动不存在");
+        if (activity == null) throw new ServiceException(404, "活动不存在");
 
         // 逻辑 A：必须是“进行中”状态 (Status = 1)
         if (activity.getStatus() != 1) {
             // 如果是招募中(0)，提示未开始
-            if (activity.getStatus() == 0) throw new RuntimeException("活动尚未开始，请等待管理员开启活动！");
+            if (activity.getStatus() == 0) throw new ServiceException(400, "活动尚未开始，请等待管理员开启活动！");
             // 如果是已结束(2)或取消(3)
-            throw new RuntimeException("活动已结束或取消，无法签到");
+            throw new ServiceException(400, "活动已结束或取消，无法签到");
         }
 
         // 逻辑 B：(可选) 必须到达开始时间 (例如：允许提前 30 分钟签到)
         LocalDateTime canSignInTime = activity.getStartTime().minusMinutes(30);
         if (LocalDateTime.now().isBefore(canSignInTime)) {
-            throw new RuntimeException("未到签到时间，请在活动开始前30分钟内签到");
+            throw new ServiceException(400, "未到签到时间，请在活动开始前30分钟内签到");
         }
 
         // 3. 执行签到
@@ -110,8 +111,8 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     // 2. 🚨 新增：签退打卡 (结束)
     public void signOut(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new RuntimeException("非法操作");
-        if (reg.getStatus() != 5) throw new RuntimeException("请先进行签到打卡！");
+        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
+        if (reg.getStatus() != 5) throw new ServiceException(400, "请先进行签到打卡！");
 
         reg.setStatus(6); // 6-已签退(待发工时)
         reg.setSignOutTime(LocalDateTime.now()); // 记录签退时间
@@ -123,7 +124,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     public void grantHours(Long regId, BigDecimal actualHours) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || (reg.getStatus() != 6 && reg.getStatus() != 5 && reg.getStatus() != 1)) {
-            throw new RuntimeException("当前状态无法发放工时");
+            throw new ServiceException(400, "当前状态无法发放工时");
         }
 
         // 计算本次应发积分 (假设 1小时 = 10积分)
@@ -150,7 +151,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     public void auditRegistration(Long regId, Integer status, String remarks) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || reg.getStatus() != 0) {
-            throw new RuntimeException("记录不存在或已处理过");
+            throw new ServiceException(400, "记录不存在或已处理过");
         }
         reg.setStatus(status); // 1-通过, 2-拒绝
         reg.setAuditTime(LocalDateTime.now());
