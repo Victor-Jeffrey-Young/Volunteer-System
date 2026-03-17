@@ -9,7 +9,6 @@ import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.service.SysActivityService;
 import com.volunteer.system.service.SysRegistrationService;
 import com.volunteer.system.service.SysUserService;
-import com.volunteer.system.service.impl.SysRegistrationServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -50,13 +49,10 @@ public class RegistrationController {
             @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId,
             @Parameter(description = "报名的活动ID", required = true) @RequestParam Long activityId) {
         log.info("接收到报名请求 - 用户ID: {}, 活动ID: {}", userId, activityId);
-        try {
-            registrationService.applyActivity(userId, activityId);
-            return Result.success("报名成功，等待管理员审核！");
-        } catch (RuntimeException e) {
-            log.warn("报名失败: {}", e.getMessage());
-            return Result.error(500, e.getMessage());
-        }
+        
+        // 如果登录失败，Service 会抛出 ServiceException，此时由全局异常处理器接管并返回 Result.error
+        registrationService.applyActivity(userId, activityId);
+        return Result.success("报名成功，等待管理员审核！");
     }
 
     /**
@@ -67,12 +63,9 @@ public class RegistrationController {
     public Result<String> cancel(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
             @Parameter(description = "志愿者用户ID(安全校验)", required = true) @RequestParam Long userId) {
-        try {
-            ((SysRegistrationServiceImpl)registrationService).cancelRegistration(regId, userId);
-            return Result.success("已成功取消报名");
-        } catch (Exception e) {
-            return Result.error(500, e.getMessage());
-        }
+        
+        registrationService.cancelRegistration(regId, userId);
+        return Result.success("已成功取消报名");
     }
 
     /**
@@ -115,13 +108,10 @@ public class RegistrationController {
     public Result<String> signIn(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
             @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId) {
-        try {
-            ((SysRegistrationServiceImpl)registrationService).signIn(regId, userId);
-            log.info("签到成功 - 记录ID: {}", regId);
-            return Result.success("签到成功！等待管理员发放工时。");
-        } catch (Exception e) {
-            return Result.error(500, e.getMessage());
-        }
+        
+        registrationService.signIn(regId, userId);
+        log.info("签到成功 - 记录ID: {}", regId);
+        return Result.success("签到成功！等待管理员发放工时。");
     }
 
     /**
@@ -132,13 +122,10 @@ public class RegistrationController {
     public Result<String> signOut(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
             @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId) {
-        try {
-            ((SysRegistrationServiceImpl)registrationService).signOut(regId, userId);
-            log.info("签退成功 - 记录ID: {}", regId);
-            return Result.success("签退成功！辛苦了，请等待管理员核实工时。");
-        } catch (Exception e) {
-            return Result.error(500, e.getMessage());
-        }
+        
+        registrationService.signOut(regId, userId);
+        log.info("签退成功 - 记录ID: {}", regId);
+        return Result.success("签退成功！辛苦了，请等待管理员核实工时。");
     }
 
     // ==========================================
@@ -232,12 +219,9 @@ public class RegistrationController {
             @RequestParam Long regId,
             @RequestParam Integer status,
             @RequestParam(required = false) String remarks) {
-        try {
-            ((SysRegistrationServiceImpl)registrationService).auditRegistration(regId, status, remarks);
-            return Result.success("审核操作成功");
-        } catch (Exception e) {
-            return Result.error(500, e.getMessage());
-        }
+        
+        registrationService.auditRegistration(regId, status, remarks);
+        return Result.success("审核操作成功");
     }
 
     /**
@@ -248,13 +232,9 @@ public class RegistrationController {
     public Result<String> grantHours(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
             @Parameter(description = "最终核发的小时数", required = true) @RequestParam BigDecimal actualHours) {
-        try {
-            ((SysRegistrationServiceImpl)registrationService).grantHours(regId, actualHours);
-            log.info("工时结算成功 - 记录ID: {}, 发放工时: {}h", regId, actualHours);
-            return Result.success("工时发放成功！");
-        } catch (Exception e) {
-            log.error("工时结算失败: {}", e.getMessage());
-            return Result.error(500, e.getMessage());
-        }
+        
+        registrationService.grantHours(regId, actualHours);
+        log.info("工时结算成功 - 记录ID: {}, 发放工时: {}h", regId, actualHours);
+        return Result.success("工时发放成功！");
     }
 }

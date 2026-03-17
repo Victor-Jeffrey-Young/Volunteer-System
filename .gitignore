@@ -31,3 +31,5 @@ build/
 
 ### VS Code ###
 .vscode/
+/volunteer-web/node_modules/
+/server.log

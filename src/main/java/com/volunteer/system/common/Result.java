@@ -16,9 +16,9 @@ public class Result<T> {
         return result;
     }
 
-    public static Result error(int i, String msg) {
-        Result result = new Result<>();
-        result.setCode(500);
+    public static <T> Result<T> error(int code, String msg) {
+        Result<T> result = new Result<>();
+        result.setCode(code);
         result.setMsg(msg);
         return result;
     }

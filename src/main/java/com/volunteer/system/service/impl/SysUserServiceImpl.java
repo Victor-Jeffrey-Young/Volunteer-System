@@ -2,6 +2,7 @@ package com.volunteer.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.mapper.SysUserMapper;
 import com.volunteer.system.service.SysUserService;
@@ -24,18 +25,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
         if (user == null) {
             log.warn("登录失败：账号不存在 ({})", username);
-            throw new RuntimeException("账号不存在！");
+            throw new ServiceException(404, "账号不存在！");
         }
 
         // 注意：目前为了测试使用明文比对。后续引入 Spring Security 时，这里会换成 BCrypt 加密比对。
         if (!user.getPassword().equals(password)) {
             log.warn("登录失败：密码错误 ({})", username);
-            throw new RuntimeException("密码错误！");
+            throw new ServiceException(400, "密码错误！");
         }
 
         if (user.getStatus() == 0) {
             log.warn("登录失败：账号被封禁 ({})", username);
-            throw new RuntimeException("账号已被封禁，请联系管理员！");
+            throw new ServiceException(403, "账号已被封禁，请联系管理员！");
         }
 
         log.info("登录成功：用户 {}", user.getRealName());
@@ -51,8 +52,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         wrapper.eq(SysUser::getUsername, user.getUsername());
         if (this.count(wrapper) > 0) {
             log.warn("注册失败：账号已被占用 ({})", user.getUsername());
-            throw new RuntimeException("该账号已被注册！");
+            throw new ServiceException(409, "该账号已被注册！");
         }
+        
+        // ... 其余逻辑保持不变
 
         // 2. 设置默认值
         user.setRole("VOLUNTEER"); // 默认角色为普通志愿者
