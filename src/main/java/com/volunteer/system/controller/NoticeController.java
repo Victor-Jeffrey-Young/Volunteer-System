@@ -3,6 +3,7 @@ package com.volunteer.system.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.system.common.Result;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysNotice;
 import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.service.SysNoticeService;
@@ -84,7 +85,9 @@ public class NoticeController {
             @RequestBody SysNotice notice,
             @Parameter(hidden = true) @RequestHeader("Role") String role) {
 
-        if (!"ADMIN".equals(role)) return Result.error(403, "权限不足，仅管理员可发布");
+        if (!"ADMIN".equals(role)) {
+            throw new ServiceException(403, "权限不足，仅管理员可发布公告");
+        }
 
         notice.setCreateTime(LocalDateTime.now());
         noticeService.save(notice);
@@ -102,7 +105,9 @@ public class NoticeController {
             @RequestBody SysNotice notice,
             @Parameter(hidden = true) @RequestHeader("Role") String role) {
 
-        if (!"ADMIN".equals(role)) return Result.error(403, "权限不足");
+        if (!"ADMIN".equals(role)) {
+            throw new ServiceException(403, "权限不足，无权修改公告");
+        }
 
         noticeService.updateById(notice);
         return Result.success("修改成功");
@@ -117,7 +122,9 @@ public class NoticeController {
             @Parameter(description = "要删除的公告ID") @PathVariable Long id,
             @Parameter(hidden = true) @RequestHeader("Role") String role) {
 
-        if (!"ADMIN".equals(role)) return Result.error(403, "权限不足");
+        if (!"ADMIN".equals(role)) {
+            throw new ServiceException(403, "权限不足，无权删除公告");
+        }
 
         noticeService.removeById(id);
         log.warn("管理员删除了公告, ID: {}", id);
