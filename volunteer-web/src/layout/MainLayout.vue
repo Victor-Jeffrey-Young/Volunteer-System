@@ -1,399 +1,389 @@
 <template>
   <div class="admin-layout">
-    <!-- 左侧边栏 (PC) / 底部导航栏 (移动端) -->
-    <div class="sidebar">
+    <!-- 移动端遮罩层 -->
+    <div 
+      v-if="mobileMenuOpen" 
+      class="mobile-backdrop"
+      @click="mobileMenuOpen = false"
+    ></div>
+
+    <!-- 侧边栏 (响应式：PC 侧边, 移动端抽屉) -->
+    <div class="sidebar" :class="{ 'collapsed': isCollapsed, 'mobile-open': mobileMenuOpen }">
       <div class="logo-container">
-        <el-icon class="logo-icon"><Promotion /></el-icon>
-        <span class="logo-text">社区志愿服务管理</span>
+        <div class="logo-circle">
+          <Heart class="logo-icon" />
+        </div>
+        <span v-if="!isCollapsed || (isMobile && mobileMenuOpen)" class="logo-text">管理中心</span>
       </div>
 
       <nav class="nav-menu">
-        <router-link to="/home" class="nav-item">
-          <el-icon><HomeFilled /></el-icon> <span class="nav-text">首页</span>
-        </router-link>
-
-        <!-- 管理员专属 -->
-        <template v-if="userRole === 'ADMIN'">
-          <div class="menu-divider">管理中心</div>
-          <router-link to="/databoard" class="nav-item">
-            <el-icon><DataLine /></el-icon> <span class="nav-text">数据</span>
-          </router-link>
-          <router-link to="/users" class="nav-item">
-            <el-icon><User /></el-icon> <span class="nav-text">用户</span>
-          </router-link>
-          <router-link to="/registrations" class="nav-item">
-            <el-icon><Tickets /></el-icon> <span class="nav-text">审核</span>
-          </router-link>
-          <router-link to="/notices" class="nav-item">
-            <el-icon><Bell /></el-icon> <span class="nav-text">公告</span>
-          </router-link>
-          <router-link to="/goods-manage" class="nav-item">
-            <el-icon><Goods /></el-icon> <span class="nav-text">商品</span>
-          </router-link>
-          <router-link to="/exchange-audit" class="nav-item">
-            <el-icon><List /></el-icon> <span class="nav-text">兑换</span>
-          </router-link>
-        </template>
-
-        <!-- 通用/志愿者 -->
-        <div class="menu-divider">业务功能</div>
-        <router-link to="/honor" class="nav-item">
-          <el-icon><Trophy /></el-icon> <span class="nav-text">荣誉</span>
-        </router-link>
-        <router-link to="/activities" class="nav-item">
-          <el-icon><Flag /></el-icon> <span class="nav-text">活动</span>
-        </router-link>
-        <router-link v-if="userRole === 'VOLUNTEER'" to="/my-records" class="nav-item">
-          <el-icon><Calendar /></el-icon> <span class="nav-text">我的</span>
-        </router-link>
-        <router-link to="/mall" class="nav-item">
-          <el-icon><ShoppingCart /></el-icon> <span class="nav-text">商城</span>
-        </router-link>
+        <div 
+          v-for="item in menuItems" 
+          :key="item.path"
+          @click="navigateTo(item.path)"
+          class="nav-item"
+          :class="{ 'active': currentPath.startsWith(item.path) }"
+        >
+          <component :is="item.icon" class="nav-icon" />
+          <span v-if="!isCollapsed || (isMobile && mobileMenuOpen)">{{ item.name }}</span>
+        </div>
       </nav>
+
+      <div class="sidebar-footer hide-on-mobile" @click="isCollapsed = !isCollapsed">
+        <ChevronLeft v-if="!isCollapsed" class="w-5 h-5" />
+        <ChevronRight v-else class="w-5 h-5" />
+      </div>
     </div>
 
-    <!-- 右侧主体 -->
+    <!-- 主体区域 -->
     <div class="main-container">
-      <header class="top-header">
-        <div class="breadcrumb-area hide-on-mobile">
-          <el-icon color="#909399" style="margin-right: 5px;"><LocationInformation /></el-icon>
-          <span>当前位置：{{ $route.name }}</span>
+      <header class="admin-header">
+        <div class="header-left flex items-center gap-4">
+          <!-- 🍔 移动端菜单按钮 -->
+          <button 
+            class="mobile-menu-btn" 
+            @click="mobileMenuOpen = !mobileMenuOpen"
+          >
+            <Menu class="w-6 h-6" />
+          </button>
+          <h2 class="page-title">{{ currentPageName }}</h2>
         </div>
-
-        <div class="user-info">
-          <!-- 段位展示 (手机端隐藏，节省空间) -->
-          <div class="level-badge hide-on-mobile" v-if="userRole !== 'ADMIN'">
-            <el-tooltip content="荣誉段位(由累计总积分决定)" placement="bottom">
-              <el-tag effect="dark" :color="currentLevel.color" class="level-tag">
-                <span class="level-icon">{{ currentLevel.icon }}</span>
-                <span class="level-name">{{ currentLevel.name }}</span>
-                <el-divider direction="vertical" />
-                <span>   总分: {{ totalPoints }}</span>
-              </el-tag>
-            </el-tooltip>
-            <el-tooltip content="这是您的钱包余额，可去商城兑换商品" placement="bottom">
-              <el-tag type="warning" effect="light" class="points-tag">
-                <span>余额: {{ currentPoints }}</span>
-              </el-tag>
-            </el-tooltip>
+        <div class="header-right">
+          <div class="user-info">
+            <div class="user-details hide-on-mobile">
+              <p class="user-name">{{ realName }}</p>
+              <p class="user-role">系统管理员</p>
+            </div>
+            <el-dropdown trigger="click">
+              <div class="avatar-wrapper">
+                <img :src="getFullAvatar(avatar)" class="admin-avatar" />
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="router.push('/admin/profile')">账号设置</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleLogout" style="color: #ef4444;">退出登录</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
-
-          <!-- 头像展示 -->
-          <el-avatar
-              :size="32"
-              :src="userAvatar || getDefaultAvatar(userUsername)"
-              style="margin-right: 10px; border: 1px solid #ddd;"
-          />
-
-          <div class="welcome-text hide-on-mobile">
-            <span>Hi, </span>
-            <span class="user-name">{{ username }}</span>
-            <el-tag size="small" effect="plain" round class="role-tag">
-              {{ userRole === 'ADMIN' ? '管理员' : '志愿者' }}
-            </el-tag>
-          </div>
-
-          <!-- 手机端仅保留图标，PC端保留文字 -->
-          <el-button type="primary" plain round size="small" @click="router.push('/profile')" :icon="User" class="action-btn">
-            <span class="hide-on-mobile">个人中心</span>
-          </el-button>
-
-          <el-button type="danger" plain round size="small" @click="handleLogout" :icon="SwitchButton" class="action-btn" style="margin-left: 10px;">
-            <span class="hide-on-mobile">退出</span>
-          </el-button>
         </div>
       </header>
 
-      <main class="content">
-        <router-view v-slot="{ Component, route }">
-          <transition name="fade" mode="out-in">
-            <!-- 🚨 核心修复：key 绑定 route.path，确保每次切换路径都强制销毁重建组件 -->
-            <component :is="Component" :key="route.path" />
-          </transition>
-        </router-view>
+      <main class="admin-content">
+        <router-view />
       </main>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watchEffect } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import request from '../utils/request';
-import { getLevelInfo, getDefaultAvatar } from '../utils/levelRules';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  HomeFilled, DataLine, User, Flag, Calendar,
-  Tickets, Bell, Promotion, LocationInformation,
-  SwitchButton, Trophy, ShoppingCart, Goods, List
-} from '@element-plus/icons-vue';
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  ClipboardCheck,
+  ShoppingBag,
+  Bell,
+  Settings,
+  Heart,
+  ChevronLeft,
+  ChevronRight,
+  UserCheck,
+  Menu,
+  X,
+  HeartHandshake
+} from 'lucide-vue-next';
+import { getFullAvatar } from '../utils/file';
 
-const router = useRouter();
 const route = useRoute();
+const router = useRouter();
+const isCollapsed = ref(false);
+const mobileMenuOpen = ref(false);
+const isMobile = ref(window.innerWidth <= 768);
 
-const username = ref('');
-const userRole = ref('');
-const userAvatar = ref('');
-const userUsername = ref('');
-const totalPoints = ref(0);
-const currentPoints = ref(0);
-const currentLevel = ref({});
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768;
+  if (!isMobile.value) mobileMenuOpen.value = false;
+};
 
-const fetchLatestUserInfo = async () => {
-  const userId = localStorage.getItem('userId');
-  if (!userId) {
-    if (route.path !== '/login') router.push('/login');
-    return;
-  }
+const currentPath = computed(() => route.path);
 
-  try {
-    const res = await request.get(`/api/user/info?userId=${userId}`);
-    const user = res.data;
+const userStore = useUserStore();
+const realName = computed(() => userStore.user?.realName || localStorage.getItem('realName') || '管理员');
+const avatar = computed(() => userStore.user?.avatar || localStorage.getItem('avatar'));
 
-    username.value = user.realName;
-    userRole.value = user.role;
-    userUsername.value = user.username;
-    userAvatar.value = user.avatar;
-    totalPoints.value = user.totalPoints || 0;
-    currentPoints.value = user.currentPoints || 0;
-    currentLevel.value = getLevelInfo(totalPoints.value);
-  } catch (error) {
-    console.error("获取用户信息失败", error);
-    handleLogout();
-  }
+const menuItems = [
+  { name: '工作台', path: '/admin/home', icon: LayoutDashboard },
+  { name: '活动管理', path: '/admin/activities-manage', icon: CalendarDays },
+  { name: '报名审核', path: '/admin/registrations', icon: UserCheck },
+  { name: '用户管理', path: '/admin/users', icon: Users },
+  { name: '商城管理', path: '/admin/goods-manage', icon: ShoppingBag },
+  { name: '兑换核销', path: '/admin/exchange-audit', icon: ClipboardCheck },
+  { name: '公告发布', path: '/admin/notices', icon: Bell },
+  { name: '微心愿审计', path: '/admin/wishes', icon: HeartHandshake }
+];
+
+const currentPageName = computed(() => {
+  const item = menuItems.find(m => currentPath.value.includes(m.path));
+  return item ? item.name : '后台管理';
+});
+
+const navigateTo = (path) => {
+  router.push(path);
+  if (isMobile.value) mobileMenuOpen.value = false; // 🚨 点击后自动关闭菜单
 };
 
 const handleLogout = () => {
-  localStorage.clear();
-  username.value = '';
-  userRole.value = '';
-  router.push('/login');
+  ElMessageBox.confirm('确定要退出管理系统吗？', '提示', { type: 'warning' }).then(() => {
+    localStorage.clear();
+    router.push('/login');
+    ElMessage.success('已安全退出');
+  });
 };
 
-watchEffect(() => {
-  if (route.path !== '/login') {
-    fetchLatestUserInfo();
-  }
+onMounted(() => {
+  window.addEventListener('resize', handleResize);
+  userStore.fetchCurrentUser();
 });
 
-onMounted(() => {
-  fetchLatestUserInfo();
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
 <style scoped>
-/* ====================================================
-   🖥️ 默认样式 (PC 端)
-   ==================================================== */
 .admin-layout {
   display: flex;
   height: 100vh;
-  background-color: #f5f7fa;
-  overflow: hidden; /* 防止外层滚动 */
+  background-color: #f8fafc;
+  color: #1e293b;
+  position: relative;
 }
 
+/* 侧边栏样式 */
 .sidebar {
-  width: 220px;
-  background: #ffffff;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+  width: 260px;
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+}
+
+.sidebar.collapsed {
+  width: 80px;
 }
 
 .logo-container {
-  height: 60px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-circle {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #f0f0f0;
-  color: #ff6b6b;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.2);
 }
-.logo-icon { font-size: 24px; margin-right: 8px; }
-.logo-text { font-size: 18px; font-weight: bold; color: #333; }
 
-.nav-menu { flex: 1; padding: 10px; overflow-y: auto; }
+.logo-icon {
+  color: white;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
 
-.menu-divider {
-  font-size: 12px;
-  color: #909399;
-  margin: 15px 0 5px 15px;
+.logo-text {
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(to right, #1e293b, #475569);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  white-space: nowrap;
+}
+
+.nav-menu {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
-  margin-bottom: 5px;
-  color: #606266;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.3s;
-  font-size: 14px;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+  white-space: nowrap;
+  font-weight: 500;
 }
-
-.nav-item .el-icon { margin-right: 10px; font-size: 16px; }
 
 .nav-item:hover {
-  background-color: #ffeaea;
-  color: #ff6b6b;
+  background-color: #fff7ed;
+  color: #f97316;
 }
 
-.router-link-active {
-  background: linear-gradient(90deg, #ff6b6b, #ff8787);
-  color: white !important;
-  box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
+.nav-item.active {
+  background-color: #f97316;
+  color: white;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
 }
 
-.main-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.nav-icon {
+  width: 20px;
+  height: 20px;
+}
 
-.top-header {
-  height: 60px;
-  background: white;
+.sidebar-footer {
+  padding: 16px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+  color: #94a3b8;
+}
+
+/* 主体内容样式 */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
+.admin-header {
+  height: 72px;
+  background-color: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  z-index: 10;
 }
 
-.breadcrumb-area { display: flex; align-items: center; color: #606266; font-size: 14px; }
-.user-info { display: flex; align-items: center; justify-content: flex-end; }
-.welcome-text { margin-right: 20px; font-size: 14px; color: #606266; display: flex; align-items: center; }
-.user-name { font-weight: bold; color: #333; margin: 0 5px; }
+.page-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
 
-.content {
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-details {
+  text-align: right;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.avatar-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #fff7ed;
+  cursor: pointer;
+}
+
+.admin-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-content {
   flex: 1;
-  padding: 20px;
-  overflow-y: auto; /* 主内容区独立滚动 */
+  overflow-y: auto;
+  padding: 24px;
 }
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+/* 📱 移动端深度适配样式 */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+}
 
-/* 积分展示样式 */
-.level-badge { display: flex; align-items: center; gap: 12px; margin-right: 20px; }
-.level-tag, .points-tag { display: inline-flex; align-items: center; justify-content: center; padding: 0 12px; height: 28px; border: none; }
-.level-tag { color: white; font-weight: bold; }
-.points-tag { font-weight: bold; }
-.level-icon { font-size: 14px; margin-right: 6px; line-height: 1; }
-.level-name { margin-right: 8px; }
-.level-tag .el-divider--vertical { height: 14px; background-color: rgba(255, 255, 255, 0.5); margin: 0; }
-.level-tag > span:last-child { margin-left: 8px; }
+.mobile-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+}
 
-
-/* ====================================================
-   📱 移动端响应式适配 (屏幕宽度小于 768px 时生效)
-   ==================================================== */
-@media screen and (max-width: 768px) {
-
-  /* 辅助类：在手机端隐藏元素 */
-  .hide-on-mobile {
-    display: none !important;
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
   }
 
-  /* 顶部 Header：更加紧凑 */
-  .top-header {
-    padding: 0 10px;
-    height: 55px;
-    justify-content: flex-end; /* 头像和按钮靠右 */
+  .mobile-backdrop {
+    display: block;
   }
 
-  /* 按钮只留图标，变成圆形 */
-  .action-btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border-radius: 50%;
-  }
-
-  /* 侧边栏爆改为底部导航栏 (Bottom Tabbar) */
   .sidebar {
-    width: 100% !important;
-    height: 60px; /* 固定高度 */
-    flex-direction: row;
     position: fixed;
-    bottom: 0;
+    height: 100%;
     left: 0;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    /* 让出 iPhone 底部安全区 */
-    padding-bottom: env(safe-area-inset-bottom);
+    top: 0;
+    transform: translateX(-100%);
+    box-shadow: 20px 0 50px rgba(0,0,0,0.1);
   }
 
-  /* 隐藏 Logo 和 分组标题 */
-  .logo-container, .menu-divider {
-    display: none !important;
+  .sidebar.mobile-open {
+    transform: translateX(0);
+    width: 280px;
   }
 
-  /* 🚨 核心修复 1：导航菜单允许横向滚动，且隐藏滚动条 */
-    .nav-menu {
-      display: flex;
-      width: 100%;
-      padding: 0;
-      margin: 0;
-      justify-content: flex-start; /* 改为从左向右排，而不是 space-around */
-      align-items: center;
-      overflow-x: auto; /* 允许横向滚动 */
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch; /* iOS 滑动顺畅 */
-    }
-
-    /* 隐藏原生滚动条 */
-    .nav-menu::-webkit-scrollbar {
-      display: none;
-    }
-
-    /* 🚨 核心修复 2：禁止图标被挤压！ */
-    .nav-item {
-      flex-direction: column;
-      padding: 8px 12px; /* 增加一点点击区域 */
-      margin: 0;
-      border-radius: 0;
-      font-size: 11px;
-      color: #909399;
-      flex-shrink: 0; /* 绝对不能收缩！保持原始宽度 */
-      width: 65px; /* 给每个按钮一个固定宽度 */
-      text-align: center;
-    }
-
-    .nav-item .el-icon {
-      margin-right: 0;
-      margin-bottom: 4px;
-      font-size: 22px;
-    }
-
-
-
-  /* 手机端取消 Hover 效果 */
-  .nav-item:hover {
-    background-color: transparent;
-    color: #909399;
+  .admin-header {
+    padding: 0 16px;
   }
 
-  /* 激活状态：没有渐变背景，只有图标和文字变色 */
-  .router-link-active {
-    background: transparent !important;
-    color: #ff6b6b !important;
-    box-shadow: none !important;
-  }
-
-  .router-link-active .nav-text {
-    font-weight: bold;
-  }
-
-  .content {
-    /* 为底部导航栏留空 */
-    padding: 10px 10px 80px;
-    overflow-y: auto;
-    overflow-x: hidden; /* 🚨 必须加上，防止内容左右晃动 */
-    -webkit-overflow-scrolling: touch; /* 让 iOS 滑动更流畅 */
-  }
-
-  /* 隐藏该区域的滚动条 */
-  .content::-webkit-scrollbar {
+  .hide-on-mobile {
     display: none;
   }
 
-
+  .admin-content {
+    padding: 12px;
+  }
+  
+  .page-title {
+    font-size: 16px;
+  }
 }
 </style>

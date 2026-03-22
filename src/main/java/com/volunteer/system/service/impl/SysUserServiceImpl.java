@@ -57,8 +57,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         
         // ... 其余逻辑保持不变
 
-        // 2. 设置默认值
-        user.setRole("VOLUNTEER"); // 默认角色为普通志愿者
+        // 2. 设置角色与状态
+        // 允许前端传入角色（如 RESIDENT），如果是空或尝试注册为 ADMIN，则强制回归 VOLUNTEER
+        if (user.getRole() == null || user.getRole().trim().isEmpty() || "ADMIN".equals(user.getRole())) {
+            user.setRole("VOLUNTEER");
+        }
+        
         user.setStatus(1);         // 状态正常
         user.setTotalHours(new java.math.BigDecimal("0.00"));
         user.setCurrentPoints(0);

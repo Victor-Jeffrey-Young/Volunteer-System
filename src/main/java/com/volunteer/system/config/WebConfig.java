@@ -27,8 +27,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // 映射本地文件目录到 Web 访问路径
-        String path = System.getProperty("user.dir") + "/files/";
+        // 🚨 增强版路径探测逻辑：兼容在项目根目录启动或在 2.Backend 目录启动
+        String userDir = System.getProperty("user.dir");
+        String path = userDir + "/files/";
+        
+        // 如果当前目录下没有 files，但存在 2.Backend/files，则自动修正
+        java.io.File file = new java.io.File(path);
+        if (!file.exists()) {
+            path = userDir + "/2.Backend/files/";
+        }
 
         registry.addResourceHandler("/files/**")
                 .addResourceLocations("file:" + path);

@@ -1,6 +1,7 @@
 package com.volunteer.system.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -53,4 +54,9 @@ public class SysActivity {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "活动发布时间")
     private LocalDateTime createTime;
+
+    @TableField("required_skills")
+    @Schema(description = "专业技能需求", example = "[\"医疗急救\"]")
+    private String requiredSkills;
+
 }

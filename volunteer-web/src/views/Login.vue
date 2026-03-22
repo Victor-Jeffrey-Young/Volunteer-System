@@ -1,436 +1,277 @@
-<template>
-  <div class="login-container">
-    <!-- 背景装饰圆 -->
-    <div class="circle circle-1"></div>
-    <div class="circle circle-2"></div>
-
-    <div class="login-box">
-      <!-- 左侧：宣传插画区 -->
-      <div class="login-left">
-        <div class="glass-overlay">
-          <div class="left-content">
-            <el-icon class="logo-icon"><Promotion /></el-icon>
-            <h2 class="system-title">志愿服务管理系统</h2>
-            <p class="slogan">连接爱心，汇聚力量<br/>让每一份善意都有归处</p>
-            <div class="feature-tags">
-              <span>🚀 高效管理</span>
-              <span>🤝 互助友爱</span>
-              <span>🌟 价值实现</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右侧：表单区 -->
-      <div class="login-right">
-        <div class="form-wrapper">
-          <h3 class="form-title">
-            {{ isLoginMode ? '欢迎登录' : '注册志愿者' }}
-          </h3>
-          <p class="form-subtitle">
-            {{ isLoginMode ? '请输入您的账号密码' : '加入我们，成为光荣的志愿者' }}
-          </p>
-
-          <!-- 登录/注册表单 -->
-          <el-form
-              ref="formRef"
-              :model="form"
-              :rules="rules"
-              label-width="0"
-              size="large"
-              class="custom-form"
-          >
-            <!-- 账号 -->
-            <el-form-item prop="username">
-              <el-input
-                  v-model="form.username"
-                  placeholder="请输入账号"
-                  :prefix-icon="User"
-              />
-            </el-form-item>
-
-            <!-- 密码 -->
-            <el-form-item prop="password">
-              <el-input
-                  v-model="form.password"
-                  type="password"
-                  placeholder="请输入密码"
-                  show-password
-                  :prefix-icon="Lock"
-              />
-            </el-form-item>
-
-            <!-- 真实姓名 (仅注册显示) -->
-            <transition name="el-zoom-in-top">
-              <el-form-item prop="realName" v-if="!isLoginMode">
-                <el-input
-                    v-model="form.realName"
-                    placeholder="请输入真实姓名 (用于证书生成)"
-                    :prefix-icon="Postcard"
-                />
-              </el-form-item>
-            </transition>
-
-            <!-- 按钮区 -->
-            <el-form-item>
-              <el-button
-                  type="primary"
-                  class="submit-btn"
-                  :loading="loading"
-                  @click.prevent="handleSubmit"
-                  round
-              >
-                {{ isLoginMode ? '立即登录' : '立即注册' }}
-              </el-button>
-            </el-form-item>
-          </el-form>
-
-          <!-- 底部切换 -->
-          <div class="form-footer">
-            <span v-if="isLoginMode">
-              还没有账号？
-              <a href="javascript:;" @click="toggleMode" class="toggle-link">去注册</a>
-            </span>
-            <span v-else>
-              已有账号？
-              <a href="javascript:;" @click="toggleMode" class="toggle-link">去登录</a>
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
-  /**
-  * Login.vue - 登录与注册模块
-  * 负责系统的统一入口，包含双模式切换、表单正则校验及身份信息本地化存储。
-  */
-  import { ref, reactive } from 'vue';
-  import { useRouter } from 'vue-router';
-  import { User, Lock, Postcard, Promotion } from '@element-plus/icons-vue';
-  import { ElMessage } from 'element-plus';
-  import request from '../utils/request';
+import { ref, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
+import { ElMessage } from 'element-plus';
+import {
+  User as UserIcon,
+  Lock,
+  EyeOff,
+  Eye,
+  CheckCircle,
+  Smartphone,
+  Heart,
+} from 'lucide-vue-next';
+import request from '../utils/request';
 
-  const router = useRouter();
+const router = useRouter();
+const userStore = useUserStore();
 
-  // --- DOM 引用与状态控制 ---
-  const formRef = ref(null);         // 表单 DOM 引用，用于触发验证
-  const isLoginMode = ref(true);     // 视图切换开关: true=登录模式, false=注册模式
-  const loading = ref(false);        // 按钮防抖防重提状态
+// 状态控制
+const isLogin = ref(true);
+const showPassword = ref(false);
+const loading = ref(false);
 
-  // --- 数据模型 ---
-  const form = reactive({
+// 表单数据
+const form = reactive({
   username: '',
   password: '',
-  realName: ''
+  realName: '', // 注册用
+  phone: '',    // 注册用：手机号
+  email: '',    // 注册用：邮箱
+  gender: 1,    // 注册用：性别 (1-男, 2-女)
+  role: 'VOLUNTEER' // 默认注册为志愿者
 });
 
-  // --- 表单校验规则 (Element Plus 规范) ---
-  const rules = {
-  username:[
-{ required: true, message: '请输入登录账号', trigger: 'blur' },
-{ min: 3, max: 20, message: '账号长度需在 3 到 20 个字符之间', trigger: 'blur' }
-  ],
-  password:[
-{ required: true, message: '请输入安全密码', trigger: 'blur' },
-{ min: 6, message: '为保障安全，密码长度不能少于 6 位', trigger: 'blur' }
-  ],
-  // 真实姓名仅在注册模式下挂载验证
-  realName:[
-{ required: true, message: '请输入真实姓名(用于荣誉证书发放)', trigger: 'blur' }
-  ]
-};
-
-  /**
-  * 切换 登录/注册 模式
-  * 动作：翻转布尔值，并清空当前表单残留的验证红字报错
-  */
-  const toggleMode = () => {
-  isLoginMode.value = !isLoginMode.value;
-  if (formRef.value) formRef.value.resetFields();
-};
-
-  /**
-  * 核心提交方法
-  * 业务流：前端校验 -> 开启 Loading -> 发起 HTTP 请求 -> 本地化存储 Session -> 路由推入主页
-  */
-  const handleSubmit = async () => {
-  if (!formRef.value) return;
-
-  // 触发全局表单校验
-  await formRef.value.validate(async (valid) => {
-  if (valid) {
-  loading.value = true; // 上锁，防止用户疯狂点击
+const handleLogin = async () => {
+  if (!form.username || !form.password) {
+    ElMessage.warning('请填写完整账号密码');
+    return;
+  }
+  
+  loading.value = true;
   try {
-  if (isLoginMode.value) {
-  /* --- 1. 执行登录流程 --- */
-  const res = await request.post('/api/auth/login', form);
+    // 🚨 修正：统一调用 store 的 login 方法
+    const data = await userStore.login(form.username, form.password);
 
-  // 【关键操作】数据本地化。这些数据将在 MainLayout.vue 挂载时被读取
-  localStorage.setItem('token', res.data.token);
-  localStorage.setItem('role', res.data.role);
-  localStorage.setItem('userId', res.data.userId);
+    ElMessage.success(`欢迎回来，${data.realName || data.username}！`);
+    
+    // 根据角色跳转
+    if (data.role === 'ADMIN') {
+      router.push('/admin/home');
+    } else if (data.role === 'VOLUNTEER') {
+      router.push('/volunteer/home');
+    } else if (data.role === 'RESIDENT') {
+      router.push('/resident/wishes');
+    }
+  } catch (error) {
+    console.error("Login Error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
 
-  // 以下数据存入缓存仅作临时展示，后续会通过 fetchLatestUserInfo 刷新
-  localStorage.setItem('realName', res.data.realName);
-  localStorage.setItem('username', res.data.username);
-  localStorage.setItem('points', res.data.points || 0);
-  localStorage.setItem('avatar', res.data.avatar || '');
+const handleRegister = async () => {
+  if (!form.username || !form.password || !form.realName || !form.phone) {
+    ElMessage.warning('请填写完整注册信息 (包括手机号)');
+    return;
+  }
 
-  ElMessage.success(`欢迎回来，${res.data.realName}！`);
-  router.push('/home'); // 鉴权成功，推入内部系统
+  // 手机号格式校验
+  if (!/^1[3-9]\d{9}$/.test(form.phone)) {
+    ElMessage.warning('请输入正确的手机号码');
+    return;
+  }
 
-} else {
-  /* --- 2. 执行注册流程 --- */
-  await request.post('/api/auth/register', form);
-  ElMessage.success('注册成功，请使用新账号登录');
-  toggleMode(); // 注册成功后，交互降级，自动切回登录视图
-}
-} catch (error) {
-  // HTTP 错误均由 request.js 的全局拦截器处理，此处静默 catch 即可
-  console.error("Auth Exception:", error);
-} finally {
-  loading.value = false; // 解锁按钮
-}
-}
-});
+  loading.value = true;
+  try {
+    await request.post('/api/auth/register', form);
+    ElMessage.success('注册成功，请登录');
+    isLogin.value = true;
+  } catch (error) {
+    console.error("Register Error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const toggleMode = () => {
+  isLogin.value = !isLogin.value;
 };
 </script>
 
-<style scoped>
-/* ====================================================
-   🖥️ 默认样式 (PC 端)
-   ==================================================== */
-/* 全屏背景容器 */
-.login-container {
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  position: relative;
-  overflow: hidden;
-}
+<template>
+  <div class="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
+    <!-- Header -->
+    <header class="w-full bg-white border-b border-slate-200 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-3">
+            <div class="bg-orange-600 p-1.5 rounded-lg flex items-center justify-center">
+              <Heart class="w-6 h-6 text-white fill-current" />
+            </div>
+            <h2 class="text-xl font-bold tracking-tight text-slate-900">志愿服务平台</h2>
+          </div>
+          <div>
+            <span class="text-sm text-slate-500 mr-4 hidden sm:inline">连接爱心，服务社会</span>
+          </div>
+        </div>
+      </div>
+    </header>
 
-/* 装饰背景圆 */
-.circle {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-}
-.circle-1 {
-  width: 400px;
-  height: 400px;
-  background: #ff9a9e;
-  top: -100px;
-  left: -100px;
-  opacity: 0.4;
-}
-.circle-2 {
-  width: 300px;
-  height: 300px;
-  background: #a18cd1;
-  bottom: -50px;
-  right: -50px;
-  opacity: 0.4;
-}
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      <!-- Background Decoration -->
+      <div class="absolute inset-0 z-0 opacity-10 pointer-events-none">
+        <div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-orange-600 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-orange-600/40 rounded-full blur-[120px]"></div>
+      </div>
 
-/* 登录卡片主体 */
-.login-box {
-  width: 900px;
-  height: 550px;
-  background: #fff;
-  border-radius: 20px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-  display: flex;
-  overflow: hidden;
-  z-index: 1;
-}
+      <div class="w-full max-w-[1000px] grid lg:grid-cols-2 bg-white rounded-3xl overflow-hidden shadow-2xl relative z-10">
+        <!-- Left Side: Visual -->
+        <div class="hidden lg:block relative overflow-hidden" style="background: linear-gradient(135deg, #ea580c 0%, #c2410c 40%, #9a3412 100%);">
+          <!-- 装饰性 SVG 图案代替外部图片 -->
+          <div class="absolute inset-0 opacity-10" style="background-image: url('data:image/svg+xml,%3Csvg width=&quot;60&quot; height=&quot;60&quot; viewBox=&quot;0 0 60 60&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot;%3E%3Cg fill=&quot;none&quot; fill-rule=&quot;evenodd&quot;%3E%3Cg fill=&quot;%23ffffff&quot; fill-opacity=&quot;0.4&quot;%3E%3Cpath d=&quot;M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z&quot;/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');"></div>
+          <!-- 装饰圆形光晕 -->
+          <div class="absolute top-[-20%] right-[-20%] w-[300px] h-[300px] bg-orange-400/30 rounded-full blur-[80px]"></div>
+          <div class="absolute bottom-[-10%] left-[-10%] w-[250px] h-[250px] bg-orange-300/20 rounded-full blur-[60px]"></div>
+          <div class="relative z-20 h-full flex flex-col justify-end p-12 text-white">
+            <h1 class="text-4xl font-bold mb-4">开启您的<br />公益之旅</h1>
+            <p class="text-lg opacity-90 leading-relaxed mb-8">
+              加入志愿者网络，用您的时间和才华为社区带来积极的改变。每一个微小的行动都能汇聚成巨大的力量。
+            </p>
+            <div class="flex items-center gap-4 text-sm font-medium">
+              <span class="flex items-center gap-1"><CheckCircle class="w-4 h-4" /> 真实项目</span>
+              <span class="flex items-center gap-1"><CheckCircle class="w-4 h-4" /> 官方认证</span>
+              <span class="flex items-center gap-1"><CheckCircle class="w-4 h-4" /> 温暖社区</span>
+            </div>
+          </div>
+        </div>
 
-/* --- 左侧区域 --- */
-.login-left {
-  flex: 1.1;
-  background: url('https://picsum.photos/800/600?grayscale&blur=2') center/cover no-repeat;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* 左侧磨砂玻璃遮罩 */
-.glass-overlay {
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 107, 107, 0.85); /* 志愿红主色调，半透明 */
-  backdrop-filter: blur(5px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  padding: 40px;
-  text-align: center;
-}
-.logo-icon {
-  font-size: 60px;
-  margin-bottom: 20px;
-}
-.system-title {
-  font-size: 28px;
-  margin-bottom: 10px;
-  font-weight: 800;
-  letter-spacing: 2px;
-}
-.slogan {
-  font-size: 16px;
-  opacity: 0.9;
-  line-height: 1.6;
-  margin-bottom: 30px;
-}
-.feature-tags span {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 5px 12px;
-  border-radius: 20px;
-  margin: 0 5px;
-  font-size: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
+        <!-- Right Side: Form -->
+        <div class="p-8 sm:p-12">
+          <div class="mb-8">
+            <div class="flex border-b border-slate-200">
+              <button
+                @click="isLogin = true"
+                class="pb-4 px-4 text-sm font-bold border-b-2 transition-all"
+                :class="isLogin ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-900'"
+              >
+                登录账号
+              </button>
+              <button
+                @click="isLogin = false"
+                class="pb-4 px-4 text-sm font-bold border-b-2 transition-all"
+                :class="!isLogin ? 'border-orange-600 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-900'"
+              >
+                注册新用户
+              </button>
+            </div>
+          </div>
 
-/* --- 右侧区域 --- */
-.login-right {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-}
-.form-wrapper {
-  width: 80%;
-  max-width: 350px;
-}
-.form-title {
-  font-size: 26px;
-  color: #333;
-  margin-bottom: 10px;
-}
-.form-subtitle {
-  color: #999;
-  font-size: 14px;
-  margin-bottom: 30px;
-}
-.custom-form .el-input__wrapper {
-  background-color: #f5f7fa;
-  box-shadow: none !important; /* 去掉默认边框 */
-  border-radius: 8px;
-  padding: 10px;
-}
-.custom-form .el-input__wrapper:hover,
-.custom-form .el-input__wrapper.is-focus {
-  background-color: #fff;
-  box-shadow: 0 0 0 1px #ff6b6b !important; /* 聚焦时显示红色边框 */
-}
-.submit-btn {
-  width: 100%;
-  height: 45px;
-  font-size: 16px;
-  letter-spacing: 2px;
-  background: linear-gradient(90deg, #ff6b6b, #ff8787);
-  border: none;
-  margin-top: 10px;
-  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
-  transition: all 0.3s;
-}
-.submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
-}
-.form-footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 14px;
-  color: #666;
-}
-.toggle-link {
-  color: #ff6b6b;
-  text-decoration: none;
-  font-weight: bold;
-  margin-left: 5px;
-  cursor: pointer;
-}
-.toggle-link:hover {
-  text-decoration: underline;
-}
+          <form class="space-y-5" @submit.prevent="isLogin ? handleLogin() : handleRegister()">
+            <div class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700">账号</label>
+              <div class="relative">
+                <UserIcon class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  v-model="form.username"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600/20 focus:border-orange-600 outline-none text-sm transition-all"
+                  placeholder="请输入账号"
+                  type="text"
+                />
+              </div>
+            </div>
 
-/* ====================================================
-   📱 移动端响应式适配 (屏幕宽度小于 768px 时生效)
-   ==================================================== */
-@media screen and (max-width: 768px) {
-  /* 1. 盒子变窄，取消固定高度，改为上下排叠 */
-  .login-box {
-    width: 90%;
-    height: auto;
-    min-height: 500px;
-    flex-direction: column;
-    border-radius: 15px;
-  }
+            <div v-if="!isLogin" class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700">真实姓名</label>
+              <div class="relative">
+                <CheckCircle class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  v-model="form.realName"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600/20 focus:border-orange-600 outline-none text-sm transition-all"
+                  placeholder="请输入您的真实姓名"
+                  type="text"
+                />
+              </div>
+            </div>
 
-  /* 2. 左侧的宣传图改为顶部的一个小 Banner */
-  .login-left {
-    flex: none;
-    height: 180px; /* 固定一个小高度 */
-  }
+            <div v-if="!isLogin" class="grid grid-cols-2 gap-4">
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-slate-700">身份类型</label>
+                <div class="mt-1">
+                  <el-radio-group v-model="form.role" class="flex gap-2">
+                    <el-radio label="VOLUNTEER">志愿者</el-radio>
+                    <el-radio label="RESIDENT">居民</el-radio>
+                  </el-radio-group>
+                </div>
+              </div>
+              <div class="space-y-1">
+                <label class="text-sm font-semibold text-slate-700">性别</label>
+                <div class="mt-1">
+                  <el-radio-group v-model="form.gender" class="flex gap-2">
+                    <el-radio :label="1">男</el-radio>
+                    <el-radio :label="2">女</el-radio>
+                  </el-radio-group>
+                </div>
+              </div>
+            </div>
 
-  /* 压缩磨砂遮罩内的元素间距 */
-  .glass-overlay {
-    padding: 20px;
-  }
-  .logo-icon {
-    font-size: 40px; /* 缩小图标 */
-    margin-bottom: 5px;
-  }
-  .system-title {
-    font-size: 22px; /* 缩小标题 */
-    margin-bottom: 5px;
-  }
-  .slogan {
-    font-size: 13px;
-    margin-bottom: 0;
-  }
-  /* 隐藏标签，节省垂直空间，防止手机端软键盘弹出时遮挡表单 */
-  .feature-tags {
-    display: none;
-  }
+            <div v-if="!isLogin" class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700">手机号码</label>
+              <div class="relative">
+                <Smartphone class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  v-model="form.phone"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600/20 focus:border-orange-600 outline-none text-sm transition-all"
+                  placeholder="请输入 11 位手机号"
+                  type="tel"
+                />
+              </div>
+            </div>
 
-  /* 3. 右侧表单区域填满剩余空间 */
-  .login-right {
-    padding: 30px 20px;
-  }
-  .form-wrapper {
-    width: 100%;
-    max-width: 100%;
-  }
-  .form-title {
-    font-size: 22px;
-  }
-  .form-subtitle {
-    margin-bottom: 20px;
-  }
+            <div v-if="!isLogin" class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700">电子邮箱</label>
+              <div class="relative">
+                <CheckCircle class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  v-model="form.email"
+                  class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600/20 focus:border-orange-600 outline-none text-sm transition-all"
+                  placeholder="请输入电子邮箱"
+                  type="email"
+                />
+              </div>
+            </div>
 
-  /* 4. 调整背景装饰圆，防止在手机上过大 */
-  .circle-1 {
-    width: 250px;
-    height: 250px;
-    top: -50px;
-    left: -50px;
-  }
-  .circle-2 {
-    width: 200px;
-    height: 200px;
-    bottom: -20px;
-    right: -20px;
-  }
-}
-</style>
+            <div class="space-y-1">
+              <label class="text-sm font-semibold text-slate-700">密码</label>
+              <div class="relative">
+                <Lock class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  v-model="form.password"
+                  class="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-600/20 focus:border-orange-600 outline-none text-sm transition-all"
+                  :placeholder="isLogin ? '请输入密码' : '请设置 6 位以上密码'"
+                  :type="showPassword ? 'text' : 'password'"
+                />
+                <button
+                  type="button"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  @click="showPassword = !showPassword"
+                >
+                  <Eye v-if="showPassword" class="w-5 h-5" />
+                  <EyeOff v-else class="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <button
+              class="w-full bg-orange-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-orange-600/30 hover:bg-orange-700 transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
+              type="submit"
+              :disabled="loading"
+            >
+              <span v-if="loading" class="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+              {{ isLogin ? '立即登录' : '注册并登录' }}
+            </button>
+          </form>
+
+          <!-- 已删除：其他登录方式 -->
+        </div>
+      </div>
+    </main>
+
+    <footer class="py-8 bg-white border-t border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+        <p>© 2024 志愿服务管理系统。让爱心传递，让温暖常在。</p>
+      </div>
+    </footer>
+  </div>
+</template>

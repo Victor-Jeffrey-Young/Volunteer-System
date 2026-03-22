@@ -66,4 +66,14 @@ public class SysUser {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "账号注册时间")
     private LocalDateTime createTime;
+
+    @Schema(description = "昨日积分排名")
+    private Integer lastRank;
+
+    @Schema(description = "昨日时长排名")
+    private Integer lastHoursRank;
+
+    @Schema(description = "获得累计点赞数")
+    @TableField("likes")
+    private Integer likes = 0;
 }

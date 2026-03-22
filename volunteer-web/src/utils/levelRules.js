@@ -7,15 +7,15 @@ export const getLevelInfo = (points) => {
     if (!points) points = 0;
 
     if (points < 100) {
-        return { icon: '⭐', name: '一星志愿者', type: 'info', color: '#909399' };
+        return { icon: '🌱', name: 'V1 新星志愿者', type: 'info', color: '#94a3b8' };
     } else if (points < 300) {
-        return { icon: '🌙', name: '二星志愿者', type: 'success', color: '#67C23A' };
+        return { icon: '🔥', name: 'V2 进阶志愿者', type: 'success', color: '#10b981' };
     } else if (points < 600) {
-        return { icon: '☀️', name: '三星志愿者', type: 'primary', color: '#409EFF' };
+        return { icon: '⚡', name: 'V3 资深志愿者', type: 'primary', color: '#3b82f6' };
     } else if (points < 1000) {
-        return { icon: '💎', name: '钻石志愿者', type: 'warning', color: '#E6A23C' };
+        return { icon: '💎', name: 'V4 达人志愿者', type: 'warning', color: '#f59e0b' };
     } else {
-        return { icon: '👑', name: '荣耀皇冠', type: 'danger', color: '#F56C6C' };
+        return { icon: '👑', name: 'V5 卓越志愿者', type: 'danger', color: '#ef4444' };
     }
 };
 

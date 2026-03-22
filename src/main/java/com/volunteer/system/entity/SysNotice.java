@@ -37,4 +37,8 @@ public class SysNotice {
     @TableField(exist = false)
     @Schema(description = "发布人姓名(联表展示用)")
     private String publisherName;
+
+    @TableField(exist = false) // 🚨 标记这不是数据库表里的字段，防止报错
+    private Integer isRead;
+
 }

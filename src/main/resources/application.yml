@@ -20,7 +20,11 @@ spring:
     # 注意：127.0.0.1 比 localhost 在某些环境下解析更稳定
     url: jdbc:mysql://127.0.0.1:3306/volunteer_db?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8
     username: root
-    password: 910059262
+    password: 123456
+  servlet:
+    multipart:
+      max-file-size: 10MB      # 单个文件最大限制
+      max-request-size: 10MB   # 单次请求总大小限制
 
 mybatis-plus:
   configuration:

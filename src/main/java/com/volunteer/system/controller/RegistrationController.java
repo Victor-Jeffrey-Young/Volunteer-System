@@ -166,13 +166,20 @@ public class RegistrationController {
             if (activity != null) {
                 reg.setActivityTitle(activity.getTitle());
                 reg.setActivityLocation(activity.getLocation());
+                reg.setRequiredSkills(activity.getRequiredSkills()); // 🚨 注入活动技能需求
             } else {
                 reg.setActivityTitle("【该活动已下架或删除】");
                 reg.setActivityLocation("--");
             }
 
             SysUser user = userService.getById(reg.getUserId());
-            if (user != null) reg.setRealName(user.getRealName());
+            if (user != null) {
+                reg.setRealName(user.getRealName());
+                reg.setPhone(user.getPhone());
+                reg.setAvatar(user.getAvatar());
+                reg.setUserSkills(user.getSkills()); // 🚨 注入用户技能
+            }
+
             else reg.setRealName("【用户已注销】");
         }
 
@@ -200,6 +207,9 @@ public class RegistrationController {
             SysUser user = userService.getById(reg.getUserId());
             if (user != null) {
                 reg.setRealName(user.getRealName());
+                reg.setPhone(user.getPhone());
+                reg.setAvatar(user.getAvatar());
+                reg.setUserSkills(user.getSkills()); // 🚨 补技能
             }
         }
         return Result.success(list);

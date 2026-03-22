@@ -44,7 +44,9 @@ public class ActivityController {
     public Result<Page<SysActivity>> getPage(
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String title) {
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String type) {
 
         log.debug("开始分页查询活动, current={}, size={}, title={}", current, size, title);
 
@@ -55,6 +57,8 @@ public class ActivityController {
         LambdaQueryWrapper<SysActivity> wrapper = new LambdaQueryWrapper<>();
         // 动态拼接 LIKE 查询
         wrapper.like(StringUtils.hasText(title), SysActivity::getTitle, title);
+        wrapper.eq(StringUtils.hasText(type), SysActivity::getType, type);
+        wrapper.eq(status != null, SysActivity::getStatus, status);
         // 按发布时间倒序排列，新活动在前
         wrapper.orderByDesc(SysActivity::getCreateTime);
 

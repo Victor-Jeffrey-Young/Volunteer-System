@@ -82,6 +82,12 @@ public class UserController {
     @PutMapping("/status")
     @Operation(summary = "[Admin] 切换用户状态", description = "用于封禁违规用户或解除封禁限制")
     public Result<String> updateStatus(@RequestBody SysUser user) {
+        // 🚨 安全增强：查出目标用户信息，防止管理员互相伤害
+        SysUser target = userService.getById(user.getUserId());
+        if (target != null && "ADMIN".equals(target.getRole())) {
+            return Result.error(403, "权限不足：无法对管理账号进行封禁操作");
+        }
+
         // 实际只需要传入 userId 和 status 两个字段
         userService.updateById(user);
         log.info("管理员变更了用户状态, 用户ID: {}, 新状态: {}", user.getUserId(), user.getStatus());
@@ -91,6 +97,12 @@ public class UserController {
     @DeleteMapping("/{id}")
     @Operation(summary = "[Admin] 物理删除用户", description = "警告：此操作不可逆")
     public Result<String> deleteUser(@PathVariable Long id) {
+        // 🚨 安全增强：保护管理员账号不被物理删除
+        SysUser target = userService.getById(id);
+        if (target != null && "ADMIN".equals(target.getRole())) {
+            return Result.error(403, "权限不足：无法删除管理员账号");
+        }
+
         userService.removeById(id);
         log.warn("管理员物理删除了用户, 用户ID: {}", id);
         return Result.success("用户删除成功");
@@ -105,6 +117,12 @@ public class UserController {
         // 安全校验：只有管理员可以重置别人密码
         if (!"ADMIN".equals(role)) {
             return Result.error(403, "权限不足，仅管理员可执行此操作");
+        }
+
+        // 🚨 安全增强：禁止重置其他管理员的密码
+        SysUser target = userService.getById(id);
+        if (target != null && "ADMIN".equals(target.getRole())) {
+            return Result.error(403, "权限不足：无法重置管理者的密码");
         }
 
         SysUser updateEntity = new SysUser();

@@ -5,8 +5,10 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.entity.SysUser;
+import com.volunteer.system.entity.SysWish;
 import com.volunteer.system.service.SysActivityService;
 import com.volunteer.system.service.SysUserService;
+import com.volunteer.system.service.SysWishService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,6 +38,8 @@ public class DashboardController {
     private SysUserService userService;
     @Autowired
     private SysActivityService activityService;
+    @Autowired
+    private SysWishService wishService;
 
     @GetMapping("/base")
     @Operation(summary = "获取首页基础统计数据", description = "统计志愿者总数、进行中的活动数及社区累计志愿总时长")
@@ -84,6 +88,27 @@ public class DashboardController {
         return Result.success(list);
     }
 
+    @GetMapping("/wishPie")
+    @Operation(summary = "获取微心愿分类占比", description = "利用 SQL GROUP BY 聚合，用于渲染 ECharts 饼状图")
+    public Result<List<Map<String, Object>>> getWishPie() {
+        QueryWrapper<SysWish> query = new QueryWrapper<>();
+        query.select("category as name", "count(*) as value").groupBy("category");
+        List<Map<String, Object>> list = wishService.listMaps(query);
+        return Result.success(list);
+    }
+
+    @GetMapping("/likesRank")
+    @Operation(summary = "获取志愿者获赞数 TOP 排行榜", description = "用于渲染 ECharts 柱状图，取前 10 名")
+    public Result<List<Map<String, Object>>> getLikesRank() {
+        QueryWrapper<SysUser> query = new QueryWrapper<>();
+        query.select("real_name as name", "likes as value")
+                .eq("role", "VOLUNTEER")
+                .orderByDesc("likes")
+                .last("LIMIT 10"); // 限制为前10名
+        List<Map<String, Object>> list = userService.listMaps(query);
+        return Result.success(list);
+    }
+
     @GetMapping("/trend")
     @Operation(summary = "获取近半年活动发布趋势", description = "按月聚合统计，用于渲染 ECharts 折线图")
     public Result<List<Map<String, Object>>> getTrend() {
@@ -97,26 +122,48 @@ public class DashboardController {
         return Result.success(list);
     }
 
+//    @GetMapping("/volunteer/rank")
+//    @Operation(summary = "获取荣誉殿堂双榜单", description = "type=hours 取时长年度榜，type=points 取积分活跃榜")
+//    public Result<List<Map<String, Object>>> getVolunteerRank(
+//            @Parameter(description = "排行类型：hours 或 points", required = true, example = "hours")
+//            @RequestParam String type) {
+//
+//        QueryWrapper<SysUser> query = new QueryWrapper<>();
+//        // 必须给 total_points 起别名为 points，前端才能正确解析
+//        query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points")
+//                .eq("role", "VOLUNTEER")
+//                .eq("status", 1);
+//
+//        if ("hours".equals(type)) {
+//            query.orderByDesc("total_hours");
+//        } else {
+//            query.orderByDesc("total_points");
+//        }
+//
+//        query.last("LIMIT 10");
+//        List<Map<String, Object>> list = userService.listMaps(query);
+//        return Result.success(list);
+//    }
+
     @GetMapping("/volunteer/rank")
-    @Operation(summary = "获取荣誉殿堂双榜单", description = "type=hours 取时长年度榜，type=points 取积分活跃榜")
+    @Operation(summary = "获取志愿者排行榜", description = "返回时长或积分前10名的志愿者及趋势数据")
     public Result<List<Map<String, Object>>> getVolunteerRank(
-            @Parameter(description = "排行类型：hours 或 points", required = true, example = "hours")
+            @Parameter(description = "排行类型：hours (按时长), points (按积分)", required = true, example = "hours")
             @RequestParam String type) {
-
         QueryWrapper<SysUser> query = new QueryWrapper<>();
-        // 必须给 total_points 起别名为 points，前端才能正确解析
-        query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points")
-                .eq("role", "VOLUNTEER")
-                .eq("status", 1);
+                 // 🚨 关键：在 SELECT 中加入 last_rank 字段
+                query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points", "last_rank")
+                         .eq("role", "VOLUNTEER")
+                         .eq("status", 1);
+                if ("hours".equals(type)) {
+                    query.orderByDesc("total_hours");
+                } else {
+                    query.orderByDesc("total_points");
+                }
 
-        if ("hours".equals(type)) {
-            query.orderByDesc("total_hours");
-        } else {
-            query.orderByDesc("total_points");
-        }
-
-        query.last("LIMIT 10");
-        List<Map<String, Object>> list = userService.listMaps(query);
-        return Result.success(list);
+                query.last("LIMIT 10");
+                List<Map<String, Object>> list = userService.listMaps(query);
+                return Result.success(list);
     }
+
 }

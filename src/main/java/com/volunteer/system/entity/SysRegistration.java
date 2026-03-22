@@ -76,4 +76,19 @@ public class SysRegistration {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "活动预定开始时间(联表展示用)")
     private LocalDateTime activityStartTime;
+
+    @TableField(exist = false)
+    private String phone; // 🚨 增加手机号
+
+    @TableField(exist = false)
+    private String avatar; // 🚨 增加头像
+
+    @TableField(exist = false)
+    @Schema(description = "志愿者拥有的技能(JSON)")
+    private String userSkills;
+
+    @TableField(exist = false)
+    @Schema(description = "活动要求的技能(JSON)")
+    private String requiredSkills;
+
 }

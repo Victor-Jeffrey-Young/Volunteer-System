@@ -1,6 +1,7 @@
 package com.volunteer.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.common.ServiceException;
@@ -34,46 +35,65 @@ public class NoticeController {
     @Autowired
     private SysUserService userService;
 
-    /**
-     * 分页查询公告列表
-     * 所有人（包含未登录游客，如果前端开放）均可查看，按发布时间倒序排列。
-     */
+
     @GetMapping("/page")
-    @Operation(summary = "分页获取公告列表", description = "支持按标题模糊搜索，自动关联发布人姓名")
-    @Parameters({
-            @Parameter(name = "current", description = "当前页码", example = "1"),
-            @Parameter(name = "size", description = "每页展示数量", example = "10"),
-            @Parameter(name = "title", description = "搜索关键词(公告标题)")
-    })
-    public Result<Page<SysNotice>> getPage(
-            @RequestParam(defaultValue = "1") Integer current,
-            @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String title) {
+    @Operation(summary = "分页查询公告", description = "企业级实现：自动识别搜索关键词与用户阅读状态")
+    public Result<IPage<SysNotice>> getPage(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer current,
+            @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
+            @Parameter(description = "公告标题搜索") @RequestParam(required = false) String title,
+            @RequestHeader(name = "userId", required = false) Long userId) { // 🚨 从 Header 拿 UID
 
-        // 1. 构造 MyBatis-Plus 分页对象
-        Page<SysNotice> pageInfo = new Page<>(current, size);
+        log.info("查询公告列表 - 用户: {}, 搜索词: {}", userId, title);
 
-        // 2. 构造查询条件
-        LambdaQueryWrapper<SysNotice> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(title), SysNotice::getTitle, title)
-                .orderByDesc(SysNotice::getCreateTime);
+        IPage<SysNotice> page = new Page<>(current, size);
+        IPage<SysNotice> result = noticeService.getNoticePage(page, userId, title);
 
-        // 3. 执行查询
-        noticeService.page(pageInfo, wrapper);
-
-        // 4. 业务层数据组装：由于数据库仅存了 publisherId，需连表查询组装发布人的真实姓名
-        // 注意：此处在大量数据下可能存在 N+1 性能隐患，但考虑到公告列表通常单页数据极少(如 5-10条)，此种写法更易于维护。
-        for (SysNotice notice : pageInfo.getRecords()) {
-            SysUser user = userService.getById(notice.getPublisherId());
-            if (user != null) {
-                notice.setPublisherName(user.getRealName());
-            } else {
-                notice.setPublisherName("系统管理员"); // 兜底处理
-            }
-        }
-
-        return Result.success(pageInfo);
+        return Result.success(result);
     }
+
+
+
+//    /**
+//     * 分页查询公告列表
+//     * 所有人（包含未登录游客，如果前端开放）均可查看，按发布时间倒序排列。
+//     */
+//    @GetMapping("/page")
+//    @Operation(summary = "分页获取公告列表", description = "支持按标题模糊搜索，自动关联发布人姓名")
+//    @Parameters({
+//            @Parameter(name = "current", description = "当前页码", example = "1"),
+//            @Parameter(name = "size", description = "每页展示数量", example = "10"),
+//            @Parameter(name = "title", description = "搜索关键词(公告标题)")
+//    })
+//    public Result<Page<SysNotice>> getPage(
+//            @RequestParam(defaultValue = "1") Integer current,
+//            @RequestParam(defaultValue = "10") Integer size,
+//            @RequestParam(required = false) String title) {
+//
+//        // 1. 构造 MyBatis-Plus 分页对象
+//        Page<SysNotice> pageInfo = new Page<>(current, size);
+//
+//        // 2. 构造查询条件
+//        LambdaQueryWrapper<SysNotice> wrapper = new LambdaQueryWrapper<>();
+//        wrapper.like(StringUtils.hasText(title), SysNotice::getTitle, title)
+//                .orderByDesc(SysNotice::getCreateTime);
+//
+//        // 3. 执行查询
+//        noticeService.page(pageInfo, wrapper);
+//
+//        // 4. 业务层数据组装：由于数据库仅存了 publisherId，需连表查询组装发布人的真实姓名
+//        // 注意：此处在大量数据下可能存在 N+1 性能隐患，但考虑到公告列表通常单页数据极少(如 5-10条)，此种写法更易于维护。
+//        for (SysNotice notice : pageInfo.getRecords()) {
+//            SysUser user = userService.getById(notice.getPublisherId());
+//            if (user != null) {
+//                notice.setPublisherName(user.getRealName());
+//            } else {
+//                notice.setPublisherName("系统管理员"); // 兜底处理
+//            }
+//        }
+//
+//        return Result.success(pageInfo);
+//    }
 
     /**
      * 新增公告
@@ -131,4 +151,30 @@ public class NoticeController {
 
         return Result.success("删除成功");
     }
+
+    /**
+     * 标记公告为已读
+     */
+    @PostMapping("/read/{id}")
+    @Operation(summary = "标记单条公告为已读", description = "用户点击查看详情后触发，用于消除红点通知")
+    public Result<String> markAsRead(
+            @Parameter(description = "公告ID", required = true) @PathVariable Long id,
+            @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
+        // 逻辑：向 sys_notice_read 插入一条记录（如果已存在则忽略）
+        noticeService.markAsRead(userId, id);
+        return Result.success("已读");
+    }
+
+    /**
+     * 一键全部标记为已读
+     */
+    @PostMapping("/read-all")
+    @Operation(summary = "全部标记为已读", description = "用于一键清理所有未读通知红点")
+    public Result<String> markAllAsRead(
+            @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
+        // 逻辑：将所有未读公告 ID 批量插入 sys_notice_read
+        noticeService.markAllAsRead(userId);
+        return Result.success("全部已读");
+    }
+
 }

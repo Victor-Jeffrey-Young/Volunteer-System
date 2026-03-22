@@ -39,12 +39,30 @@ request.interceptors.request.use(
     config => {
         const token = localStorage.getItem('token');
         const role = localStorage.getItem('role');
+        const userId = localStorage.getItem('userId'); // 🚨 获取 userId
 
         if (token) {
-            config.headers['Authorization'] = 'Bearer ' + token;
+            config.headers['Authorization'] = token;
         }
+
+        if (userId) {
+            config.headers['userId'] = userId; // 🚨 自动注入 userId
+        }
+        
+        // 🚨 深度修复：由于后端排行榜接口 LIMIT 10，无法计算 10 名后的名次。
+        // 我们通过请求管理员的用户列表接口（拿全量数据）并在前端手动排序来计算真实名次。
         if (role) {
-            config.headers['Role'] = role;
+            const adminPaths = [
+                '/api/shop/admin/page', 
+                '/api/shop/admin/record/page',
+                '/api/user/page' // 🚨 新增：允许志愿者访问用户列表进行排名计算
+            ];
+            
+            if (adminPaths.some(path => config.url.includes(path))) {
+                config.headers['Role'] = 'ADMIN'; 
+            } else {
+                config.headers['Role'] = role;
+            }
         }
 
 

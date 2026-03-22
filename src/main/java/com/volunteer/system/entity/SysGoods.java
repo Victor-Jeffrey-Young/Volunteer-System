@@ -35,4 +35,7 @@ public class SysGoods {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "上架时间")
     private LocalDateTime createTime;
+
+    @Schema(description = "商品分类", example = "生活用品")
+private String category;
 }

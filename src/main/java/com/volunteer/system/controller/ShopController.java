@@ -119,10 +119,10 @@ public class ShopController {
     // ==========================================
 
     @PostMapping("/admin/verify")
-    @Operation(summary = "[Admin] 线下核销兑换码", description = "管理员通过扫码或手输，验证兑换码有效性，将状态翻转为已发货")
+    @Operation(summary = "[Admin] 线下核销兑换码", description = "管理员验证兑换码有效性并核销")
     public Result<String> verifyExchange(
-            @Parameter(description = "系统生成的兑换码(如: GIFT-xxx)", required = true) @RequestParam String code,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
+            @Parameter(description = "兑换码(GIFT-xxxx)", required = true) @RequestParam String code,
+            @Parameter(description = "操作员角色", hidden = true) @RequestHeader("Role") String role) {
 
         // 业务下沉到 Service
         recordService.verifyExchange(code, role);
@@ -130,14 +130,13 @@ public class ShopController {
         return Result.success("核销成功！请发放物品。");
     }
 
-    // ... getRecordPage 里的权限校验同步修改 ...
-
-
     @GetMapping("/admin/record/page")
-    @Operation(summary = "[Admin] 分页查询全局兑换流水帐", description = "支持按状态或核销码筛选，用于对账审计")
+    @Operation(summary = "[Admin] 分页查询全局兑换流水", description = "支持按核销码精准查询或按状态筛选")
     @Parameters({
-            @Parameter(name = "code", description = "精准搜索指定核销码"),
-            @Parameter(name = "status", description = "0-待核销, 1-已领取")
+            @Parameter(name = "current", description = "页码"),
+            @Parameter(name = "size", description = "每页条数"),
+            @Parameter(name = "code", description = "兑换码精确搜索"),
+            @Parameter(name = "status", description = "状态：0-待核销, 1-已领取")
     })
     public Result<Page<SysExchangeRecord>> getRecordPage(
             @Parameter(hidden = true) @RequestHeader("Role") String role,
