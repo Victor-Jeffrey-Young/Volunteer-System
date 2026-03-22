@@ -38,7 +38,7 @@ onMounted(() => {
         <div class="flex items-center gap-2 sm:gap-4">
           <RouterLink to="/resident/home" class="flex items-center gap-2 text-orange-600">
             <Heart class="h-8 w-8 fill-current" />
-            <h2 class="hidden text-xl font-bold tracking-tight text-slate-900 sm:block">社区服务·居民端</h2>
+            <h2 class="hidden text-xl font-bold tracking-tight text-slate-900 sm:block">社区志愿服务平台 · 居民</h2>
           </RouterLink>
         </div>
 

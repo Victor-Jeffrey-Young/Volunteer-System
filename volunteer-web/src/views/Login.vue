@@ -100,7 +100,7 @@ const toggleMode = () => {
             <div class="bg-orange-600 p-1.5 rounded-lg flex items-center justify-center">
               <Heart class="w-6 h-6 text-white fill-current" />
             </div>
-            <h2 class="text-xl font-bold tracking-tight text-slate-900">志愿服务平台</h2>
+            <h2 class="text-xl font-bold tracking-tight text-slate-900">社区志愿服务平台</h2>
           </div>
           <div>
             <span class="text-sm text-slate-500 mr-4 hidden sm:inline">连接爱心，服务社会</span>

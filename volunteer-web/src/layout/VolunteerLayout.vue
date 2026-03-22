@@ -129,7 +129,7 @@ const openAbout = (tab = 'mission') => {
         <div class="flex items-center gap-2 sm:gap-4">
           <RouterLink to="/volunteer/home" class="flex items-center gap-2 text-orange-600">
             <Heart class="h-8 w-8 fill-current" />
-            <h2 class="hidden text-xl font-bold tracking-tight text-slate-900 sm:block">志愿服务平台</h2>
+            <h2 class="hidden text-xl font-bold tracking-tight text-slate-900 sm:block">社区志愿服务平台 · 志愿者</h2>
           </RouterLink>
         </div>
 

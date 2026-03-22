@@ -13,7 +13,7 @@
         <div class="logo-circle">
           <Heart class="logo-icon" />
         </div>
-        <span v-if="!isCollapsed || (isMobile && mobileMenuOpen)" class="logo-text">管理中心</span>
+        <span v-if="!isCollapsed || (isMobile && mobileMenuOpen)" class="logo-text">社区志愿 管理中心</span>
       </div>
 
       <nav class="nav-menu">
