@@ -118,7 +118,7 @@ const handleLogout = () => {
         <div class="relative -mt-12 mb-8 flex flex-col sm:flex-row sm:items-end gap-6">
           <div class="relative group">
             <div class="w-32 h-32 rounded-3xl border-4 border-white overflow-hidden bg-slate-100 shadow-lg">
-              <img :src="form.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + form.username" class="w-full h-full object-cover" />
+              <img :src="form.avatar || '../public/default-Avatar.png'" class="w-full h-full object-cover" />
             </div>
             <el-upload
               action="#"

@@ -19,7 +19,7 @@ import java.util.Map;
 @Component
 public class JwtUtils {
 
-    // 🚨 生产环境建议将此密钥配置在 application.yml 中
+    // 生产环境建议将此密钥配置在 application.yml 中
     // 生成一个足够强度的密钥 (HS256 要求至少 256 位)
     private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor("volunteer-system-secret-key-2026-secure-jwt-key".getBytes());
 

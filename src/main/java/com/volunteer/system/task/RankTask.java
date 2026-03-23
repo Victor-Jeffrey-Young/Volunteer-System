@@ -32,13 +32,13 @@ public class RankTask {
                     .eq(SysUser::getUserId, pointsList.get(i).getUserId()).update();
         }
 
-        // 2. 处理时长排名 (存入 last_hours_rank) 🚨 重点新增
+        // 2. 处理时长排名 (存入 last_hours_rank)
         List<SysUser> hoursList = userService.lambdaQuery()
                 .eq(SysUser::getRole, "VOLUNTEER")
                 .orderByDesc(SysUser::getTotalHours).list();
         for (int i = 0; i < hoursList.size(); i++) {
             userService.lambdaUpdate()
-                    .set(SysUser::getLastHoursRank, i + 1) // 🚨 对应新字段
+                    .set(SysUser::getLastHoursRank, i + 1)
                     .eq(SysUser::getUserId, hoursList.get(i).getUserId()).update();
         }
     }

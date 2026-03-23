@@ -115,6 +115,12 @@ request.interceptors.response.use(
         const res = response.data;
         if (res.code === 200) {
             return res;
+        } else if (res.code === 401) {
+            // 🚨 补充：处理业务逻辑层面的 401
+            ElMessage.error(res.msg || '登录已过期');
+            localStorage.clear();
+            router.push('/login');
+            return Promise.reject(new Error(res.msg || 'Error'));
         } else {
             ElMessage.error(res.msg || '系统错误');
             return Promise.reject(new Error(res.msg || 'Error'));

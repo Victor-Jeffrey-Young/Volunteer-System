@@ -26,7 +26,7 @@ const items = ref([]);
 const exchangeRecords = ref([]);
 const loading = ref(false);
 
-const categories = ['全部', '生活用品', '纪念品', '电子产品', '文具', '虚拟卡券','玩具','游戏'];
+const categories = ['全部', '生活用品', '纪念品', '电子产品', '文具', '虚拟卡券','玩偶/玩具','电子游戏'];
 
 // 🚨 二维码生成逻辑
 const generateQR = async (text) => {
@@ -211,7 +211,7 @@ const handleRedeem = async (item) => {
       >
         <div class="relative aspect-square overflow-hidden bg-slate-50 flex items-center justify-center p-6 group-hover:bg-slate-100 transition-colors duration-300">
           <img
-            :src="item.image || 'https://images.pexels.com/photos/6646918/pexels-photo-6646918.jpeg?auto=compress&cs=tinysrgb&w=800'"
+            :src="item.image || '../public/no_goods.png'"
             :alt="item.name"
             class="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110 drop-shadow-md mix-blend-multiply"
           />
