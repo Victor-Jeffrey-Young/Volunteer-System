@@ -122,6 +122,7 @@ onMounted(() => fetchUserList(1));
       <select v-model="searchRole" class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-orange-500">
         <option value="">全部角色</option>
         <option value="VOLUNTEER">志愿者</option>
+        <option value="RESIDENT">居民</option>
         <option value="ADMIN">管理员</option>
       </select>
 
@@ -158,9 +159,9 @@ onMounted(() => fetchUserList(1));
           <template #default="scope">
             <span 
               class="px-2.5 py-0.5 rounded-full text-xs font-bold"
-              :class="scope.row.role === 'ADMIN' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'"
+              :class="scope.row.role === 'ADMIN' ? 'bg-red-50 text-red-600' : (scope.row.role === 'RESIDENT' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600')"
             >
-              {{ scope.row.role === 'ADMIN' ? '管理员' : '志愿者' }}
+              {{ scope.row.role === 'ADMIN' ? '管理员' : (scope.row.role === 'RESIDENT' ? '居民' : '志愿者') }}
             </span>
           </template>
         </el-table-column>
@@ -211,6 +212,9 @@ onMounted(() => fetchUserList(1));
           <template #default="scope">
             <div v-if="scope.row.role === 'ADMIN'" class="text-xs text-slate-400 italic py-2">
               {{ scope.row.userId == currentLoginId ? '当前账号 (受保护)' : '管理账号 (受保护)' }}
+            </div>
+            <div v-else-if="scope.row.role === 'RESIDENT'" class="text-xs text-slate-400 italic py-2">
+              居民账号
             </div>
             <div v-else class="flex items-center justify-center gap-2">
               <el-button 

@@ -36,8 +36,6 @@ public class ShopController {
     @Autowired private SysGoodsService goodsService;
     @Autowired private SysExchangeRecordService recordService;
 
-    // ... listGoods 保持不变 ...
-
     /**
      * 核心高并发接口：积分兑换商品
      */
@@ -54,8 +52,6 @@ public class ShopController {
 
         return Result.success("兑换成功！请凭兑换码 [" + code + "] 到服务中心领取。");
     }
-
-    // ... getMyExchanges 保持不变 ...
 
     // ==========================================
     // ⚙️ 管理员端：商品维护与流水审计接口

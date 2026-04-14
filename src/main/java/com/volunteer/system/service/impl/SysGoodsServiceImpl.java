@@ -20,7 +20,4 @@ public class SysGoodsServiceImpl extends ServiceImpl<SysGoodsMapper, SysGoods> i
         // baseMapper 就是当前 Impl 绑定的 SysGoodsMapper
         return baseMapper.selectByIdForUpdate(id);
     }
-
-    // 目前无需自定义方法，MyBatis-Plus 的通用方法已足够
-    // 未来如果需要复杂的，比如“查询热门兑换商品”，可以在这里写
 }

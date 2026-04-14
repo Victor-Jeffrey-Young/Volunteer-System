@@ -6,12 +6,17 @@ import { Calendar, ChevronRight, Bell, X } from 'lucide-vue-next';
 const selectedAnnouncement = ref(null);
 const announcements = ref([]);
 const loading = ref(false);
+const currentPage = ref(1);
+const pageSize = ref(10);
+const total = ref(0);
 
-const fetchData = async () => {
+const fetchData = async (page = 1) => {
+  currentPage.value = page;
   loading.value = true;
   try {
-    const res = await announcementApi.getAnnouncements(1, 20);
+    const res = await announcementApi.getAnnouncements(page, pageSize.value);
     announcements.value = res.data?.records || [];
+    total.value = res.data?.total || 0;
   } catch (error) {
     console.error("Fetch announcements error:", error);
   } finally {
@@ -19,7 +24,7 @@ const fetchData = async () => {
   }
 };
 
-onMounted(fetchData);
+onMounted(() => fetchData(1));
 </script>
 
 <template>
@@ -68,20 +73,14 @@ onMounted(fetchData);
 
     <!-- Pagination -->
     <div class="mt-8 flex justify-center">
-      <nav class="flex items-center gap-2">
-        <button class="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50" disabled>
-          &lt;
-        </button>
-        <button class="h-10 w-10 flex items-center justify-center rounded-xl bg-orange-600 text-white font-medium">
-          1
-        </button>
-        <button class="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium">
-          2
-        </button>
-        <button class="h-10 w-10 flex items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50">
-          &gt;
-        </button>
-      </nav>
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="total"
+        layout="prev, pager, next"
+        background
+        @current-change="fetchData"
+      />
     </div>
 
     <!-- Announcement Detail Modal -->

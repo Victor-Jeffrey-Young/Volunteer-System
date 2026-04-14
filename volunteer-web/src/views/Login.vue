@@ -270,7 +270,7 @@ const toggleMode = () => {
 
     <footer class="py-8 bg-white border-t border-slate-200">
       <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
-        <p>© 2024 志愿服务管理系统。让爱心传递，让温暖常在。</p>
+        <p>© 2026 社区志愿服务管理系统。让爱心传递，让温暖常在。</p>
       </div>
     </footer>
   </div>

@@ -16,7 +16,7 @@ const timeframe = ref('month');
 const category = ref('points');
 const leaderboardData = ref([]);
 const userStore = useUserStore();
-const myRank = ref('-'); 
+const myRank = ref('-');
 const loading = ref(false);
 
 const getLevel = (points) => {
@@ -27,17 +27,17 @@ const getLevel = (points) => {
 const getTrend = (user, currentRank) => {
   // 根据当前所在的榜单分类，选择对应的历史名次字段
   // 积分榜用 lastRank，时长榜用 lastHoursRank，获赞榜暂无历史排名字段
-  const lastRank = category.value === 'points' 
-    ? (user.lastRank || 0) 
+  const lastRank = category.value === 'points'
+    ? (user.lastRank || 0)
     : (category.value === 'hours' ? (user.lastHoursRank || 0) : 0);
 
   if (lastRank === 0) return { color: 'text-slate-400', component: Minus, change: 0 };
 
-  const diff = lastRank - currentRank; 
+  const diff = lastRank - currentRank;
 
   if (diff > 0) return { color: 'text-emerald-500', component: ArrowUp, change: diff };
   if (diff < 0) return { color: 'text-red-500', component: ArrowDown, change: Math.abs(diff) };
-  
+
   return { color: 'text-slate-400', component: Minus, change: 0 };
 };
 
@@ -46,7 +46,7 @@ const fetchData = async () => {
   try {
     const res = await userApi.getAllVolunteers();
     const allUsers = res.data?.records || [];
-    
+
     const effectiveUserId = userStore.userId || localStorage.getItem('userId');
 
     let sortedList = [];
@@ -126,7 +126,7 @@ const getRankStyle = (rank) => {
         </div>
         <div class="flex items-center gap-4">
           <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-600 shrink-0 bg-slate-700">
-            <img :src="userStore.user?.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" alt="Me" class="w-full h-full object-cover" />
+            <img :src="userStore.user?.avatar || '../public/default-Avatar.png'" alt="Me" class="w-full h-full object-cover" />
           </div>
           <div>
             <div class="font-bold text-lg flex items-center gap-2">

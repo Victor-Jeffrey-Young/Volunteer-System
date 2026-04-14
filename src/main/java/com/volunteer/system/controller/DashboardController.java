@@ -47,10 +47,10 @@ public class DashboardController {
         log.debug("正在执行首页基础数据统计分析...");
         Map<String, Object> data = new HashMap<>();
 
-        // 1. 志愿者总数 (条件: role = 'VOLUNTEER')
+        // 1. 志愿者总数 (条件：role = 'VOLUNTEER')
         long volCount = userService.count(new LambdaQueryWrapper<SysUser>().eq(SysUser::getRole, "VOLUNTEER"));
 
-        // 2. 活跃活动数 (状态 0-招募中, 1-进行中)
+        // 2. 活跃活动数 (状态 0-招募中，1-进行中)
         long activeCount = activityService.count(new LambdaQueryWrapper<SysActivity>().in(SysActivity::getStatus, 0, 1));
 
         // 3. 累计总时长 (利用 Stream API 在内存中聚合，数据量极大时建议改用 SQL SUM 函数)
@@ -58,9 +58,14 @@ public class DashboardController {
         List<SysUser> users = userService.list(new LambdaQueryWrapper<SysUser>().eq(SysUser::getRole, "VOLUNTEER"));
         BigDecimal totalHours = users.stream().map(SysUser::getTotalHours).reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // 4. 居民点赞总数 (所有志愿者的 likes 总和)
+        // TODO 2.0: 优化为 SELECT SUM(likes) FROM sys_user WHERE role='VOLUNTEER'
+        int totalLikes = users.stream().mapToInt(SysUser::getLikes).sum();
+
         data.put("volCount", volCount);
         data.put("activeCount", activeCount);
         data.put("totalHours", totalHours);
+        data.put("totalLikes", totalLikes);
 
         return Result.success(data);
     }

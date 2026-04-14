@@ -47,12 +47,9 @@ public class ActivityController {
             @RequestParam(required = false) String title,
             @RequestParam(required = false) Integer status,
             @RequestParam(required = false) String type) {
-
         log.debug("开始分页查询活动, current={}, size={}, title={}", current, size, title);
-
         // 1. 构造分页对象
         Page<SysActivity> pageInfo = new Page<>(current, size);
-
         // 2. 构造查询条件
         LambdaQueryWrapper<SysActivity> wrapper = new LambdaQueryWrapper<>();
         // 动态拼接 LIKE 查询
@@ -61,10 +58,8 @@ public class ActivityController {
         wrapper.eq(status != null, SysActivity::getStatus, status);
         // 按发布时间倒序排列，新活动在前
         wrapper.orderByDesc(SysActivity::getCreateTime);
-
         // 3. 执行 MyBatis-Plus 的物理分页查询
         activityService.page(pageInfo, wrapper);
-
         return Result.success(pageInfo);
     }
 

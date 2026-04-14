@@ -127,13 +127,15 @@ request.interceptors.response.use(
         }
     },
     error => {
-        // 网络错误或 403 权限等兜底处理
         console.error('API请求异常:', error);
 
         if (error.response && error.response.status === 401) {
             ElMessage.error('登录已过期，请重新登录');
             localStorage.clear();
             router.push('/login');
+        } else if (error.response && error.response.data) {
+            const errorMsg = error.response.data.msg || '请求失败';
+            ElMessage.error(errorMsg);
         } else {
             ElMessage.error('网络异常或服务器未响应，请稍后再试');
         }

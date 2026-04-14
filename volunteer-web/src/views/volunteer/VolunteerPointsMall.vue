@@ -274,7 +274,7 @@ const handleRedeem = async (item) => {
             :key="record.recordId"
             class="flex gap-4 items-start border-b border-slate-50 pb-4"
           >
-            <img :src="record.goodsImage || 'https://images.pexels.com/photos/6646918/pexels-photo-6646918.jpeg?auto=compress&cs=tinysrgb&w=150'" alt="item" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100" />
+            <img :src="record.goodsImage || '../public/no_goods.png'" alt="item" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100" />
             <div class="flex-1">
               <div class="flex justify-between items-start">
                 <h4 class="font-bold text-sm text-slate-900">{{ record.goodsName }}</h4>

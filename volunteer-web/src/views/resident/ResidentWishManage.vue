@@ -33,9 +33,14 @@
           </div>
           
           <!-- 认领后展示志愿者信息 -->
-          <div v-if="item.status === 2 || item.status === 3" class="volunteer-info">
+          <div v-if="[2, 3, 5, 6].includes(item.status)" class="volunteer-info">
             <el-avatar size="small" :src="getFullAvatar(item.volunteerAvatar)" />
-            <span>{{ item.volunteerName || '爱心志愿者' }} 已接单</span>
+            <div class="volunteer-details">
+              <span class="volunteer-name">{{ item.volunteerName || '爱心志愿者' }} 已接单</span>
+              <span v-if="item.volunteerPhone" class="volunteer-phone">
+                📞 {{ item.volunteerPhone }}
+              </span>
+            </div>
           </div>
 
           <div v-if="item.remarks" class="feedback-msg">
@@ -175,7 +180,9 @@
                 <el-avatar :size="20" :src="getFullAvatar(selectedWish.volunteerAvatar)" />
                 <p style="font-size: 12px; font-weight: bold; color: #f97316;">志愿者 {{ selectedWish.volunteerName }} 正在赶来</p>
               </div>
-              <p style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-style: italic;">如需联系，请查看列表页面的联系方式。</p>
+              <div v-if="selectedWish.volunteerPhone" style="margin-top: 6px; padding: 6px 10px; background: #ecfdf5; border-radius: 6px; border: 1px solid #a7f3d0;">
+                <p style="font-size: 11px; color: #059669; font-weight: 500;">📞 联系电话：{{ selectedWish.volunteerPhone }}</p>
+              </div>
             </div>
             <p v-else style="font-size: 12px; color: #94a3b8;">等待热心志愿者接单...</p>
           </el-timeline-item>
@@ -541,13 +548,28 @@ onUnmounted(() => {
   margin-top: 12px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  background: #f0fdf4;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+.volunteer-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.volunteer-name {
   font-size: 12px;
   color: #16a34a;
   font-weight: bold;
-  background: #f0fdf4;
-  padding: 4px 10px;
-  border-radius: 999px;
+}
+
+.volunteer-phone {
+  font-size: 11px;
+  color: #15803d;
+  font-weight: 500;
 }
 
 .feedback-msg {

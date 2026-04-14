@@ -393,7 +393,7 @@ const confirmSignup = async () => {
             </div>
             <p v-if="getMatchResult(confirmSignupActivity).status === 'missing'"
               class="text-[10px] text-slate-400 mt-2">
-              温馨提示：该岗位需要特定专业技能，非相关专长志愿者可能无法胜任。
+              温馨提示：该岗位需要特定专业技能。（技能描述仅供参考）
             </p>
           </div>
 

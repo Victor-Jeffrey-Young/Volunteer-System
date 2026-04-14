@@ -186,6 +186,7 @@ public class WishController {
                 SysUser vol = userService.getById(wish.getVolunteerId());
                 if (vol != null) {
                     wish.setVolunteerName(vol.getRealName());
+                    wish.setVolunteerPhone(vol.getPhone());
                     wish.setVolunteerAvatar(vol.getAvatar());
                 }
             }
@@ -264,6 +265,7 @@ public class WishController {
                 SysUser vol = userService.getById(wish.getVolunteerId());
                 if (vol != null) {
                     wish.setVolunteerName(vol.getRealName());
+                    wish.setVolunteerPhone(vol.getPhone());
                     wish.setVolunteerAvatar(vol.getAvatar());
                 }
             }

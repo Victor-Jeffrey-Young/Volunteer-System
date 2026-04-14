@@ -31,7 +31,6 @@ public class JwtInterceptor implements HandlerInterceptor {
             Claims claims = jwtUtils.parseToken(token);
             if (claims != null) {
                 // Token 有效，允许通过
-                // 💡 进阶：可以将 userId 存入 request 作用域，方便 Controller 获取
                 request.setAttribute("userId", claims.get("userId"));
                 request.setAttribute("role", claims.get("role"));
                 return true;

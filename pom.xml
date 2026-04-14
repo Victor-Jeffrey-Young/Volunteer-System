@@ -98,7 +98,6 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <!-- 🚨 这里也必须改为 1.18.32 -->
                             <version>1.18.32</version>
                         </path>
                     </annotationProcessorPaths>

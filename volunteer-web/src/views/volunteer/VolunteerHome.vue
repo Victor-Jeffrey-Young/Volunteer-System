@@ -28,6 +28,7 @@ const stats = ref({
   volCount: 0,
   activeCount: 0,
   totalHours: 0,
+  totalLikes: 0,
 });
 
 const fetchData = async () => {
@@ -145,8 +146,8 @@ const getCategoryCover = (activity) => {
           <div class="text-sm font-medium text-slate-500">服务时长 (小时)</div>
         </div>
         <div class="text-center">
-          <div class="text-3xl font-bold text-slate-900 mb-1">99%</div>
-          <div class="text-sm font-medium text-slate-500">好评率</div>
+          <div class="text-3xl font-bold text-rose-500 mb-1">{{ stats.totalLikes || 0 }}</div>
+          <div class="text-sm font-medium text-slate-500">居民点赞</div>
         </div>
       </div>
     </section>

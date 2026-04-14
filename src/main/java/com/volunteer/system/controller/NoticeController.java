@@ -52,49 +52,6 @@ public class NoticeController {
         return Result.success(result);
     }
 
-
-
-//    /**
-//     * 分页查询公告列表
-//     * 所有人（包含未登录游客，如果前端开放）均可查看，按发布时间倒序排列。
-//     */
-//    @GetMapping("/page")
-//    @Operation(summary = "分页获取公告列表", description = "支持按标题模糊搜索，自动关联发布人姓名")
-//    @Parameters({
-//            @Parameter(name = "current", description = "当前页码", example = "1"),
-//            @Parameter(name = "size", description = "每页展示数量", example = "10"),
-//            @Parameter(name = "title", description = "搜索关键词(公告标题)")
-//    })
-//    public Result<Page<SysNotice>> getPage(
-//            @RequestParam(defaultValue = "1") Integer current,
-//            @RequestParam(defaultValue = "10") Integer size,
-//            @RequestParam(required = false) String title) {
-//
-//        // 1. 构造 MyBatis-Plus 分页对象
-//        Page<SysNotice> pageInfo = new Page<>(current, size);
-//
-//        // 2. 构造查询条件
-//        LambdaQueryWrapper<SysNotice> wrapper = new LambdaQueryWrapper<>();
-//        wrapper.like(StringUtils.hasText(title), SysNotice::getTitle, title)
-//                .orderByDesc(SysNotice::getCreateTime);
-//
-//        // 3. 执行查询
-//        noticeService.page(pageInfo, wrapper);
-//
-//        // 4. 业务层数据组装：由于数据库仅存了 publisherId，需连表查询组装发布人的真实姓名
-//        // 注意：此处在大量数据下可能存在 N+1 性能隐患，但考虑到公告列表通常单页数据极少(如 5-10条)，此种写法更易于维护。
-//        for (SysNotice notice : pageInfo.getRecords()) {
-//            SysUser user = userService.getById(notice.getPublisherId());
-//            if (user != null) {
-//                notice.setPublisherName(user.getRealName());
-//            } else {
-//                notice.setPublisherName("系统管理员"); // 兜底处理
-//            }
-//        }
-//
-//        return Result.success(pageInfo);
-//    }
-
     /**
      * 新增公告
      * 仅具备 ADMIN 角色的用户可调用，系统会自动记录当前服务器时间为发布时间。
