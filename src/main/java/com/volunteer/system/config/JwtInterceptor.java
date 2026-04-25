@@ -23,7 +23,7 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1. 从请求头获取 Token (约定前端放在 Authorization 中)
+        // 1. 从请求头获取 Token (约定前端放在 Authorization)
         String token = request.getHeader("Authorization");
 
         // 2. 校验 Token

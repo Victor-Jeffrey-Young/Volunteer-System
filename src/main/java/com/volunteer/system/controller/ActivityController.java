@@ -101,7 +101,6 @@ public class ActivityController {
 
         if (!"ADMIN".equals(role)) return Result.error(403, "无权修改");
 
-        // TODO 2.0: 增加业务校验，如活动已开始，则不允许修改核心信息（时间、地点）
         activityService.updateById(activity);
         log.info("活动信息被修改，活动ID: {}", activity.getActivityId());
 
@@ -120,7 +119,6 @@ public class ActivityController {
 
         if (!"ADMIN".equals(role)) return Result.error(403, "无权删除");
 
-        // TODO 2.0: 建议改为逻辑删除 (Soft Delete)
         activityService.removeById(id);
         log.warn("活动被物理删除，活动ID: {}", id);
 

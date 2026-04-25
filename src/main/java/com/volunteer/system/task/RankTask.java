@@ -16,7 +16,6 @@ public class RankTask {
      * 每天凌晨 00:00 执行：将当前的实时排名存入 last_rank 字段
      * 这样用户在白天看到的趋势，就是相对于昨天的变化。
      */
-    // 在 RankTask.java 中修改核心逻辑
     @Scheduled(cron = "0 0 0 * * ?")
     @Transactional
     public void refreshYesterdayRank() {

@@ -31,7 +31,7 @@ public class UserController {
     private SysUserService userService;
 
     // ==========================================
-    // 🛡️ 管理员专属：用户状态与权限控制接口
+    // 管理员：用户状态与权限控制接口
     // ==========================================
 
     @GetMapping("/page")
@@ -82,7 +82,7 @@ public class UserController {
     @PutMapping("/status")
     @Operation(summary = "[Admin] 切换用户状态", description = "用于封禁违规用户或解除封禁限制")
     public Result<String> updateStatus(@RequestBody SysUser user) {
-        // 🚨 安全增强：查出目标用户信息，防止管理员互相伤害
+        // 查出目标用户信息，防止管理员互相伤害
         SysUser target = userService.getById(user.getUserId());
         if (target != null && "ADMIN".equals(target.getRole())) {
             return Result.error(403, "权限不足：无法对管理账号进行封禁操作");
@@ -97,7 +97,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     @Operation(summary = "[Admin] 物理删除用户", description = "警告：此操作不可逆")
     public Result<String> deleteUser(@PathVariable Long id) {
-        // 🚨 安全增强：保护管理员账号不被物理删除
+        // 保护管理员账号不被物理删除
         SysUser target = userService.getById(id);
         if (target != null && "ADMIN".equals(target.getRole())) {
             return Result.error(403, "权限不足：无法删除管理员账号");
@@ -119,7 +119,7 @@ public class UserController {
             return Result.error(403, "权限不足，仅管理员可执行此操作");
         }
 
-        // 🚨 安全增强：禁止重置其他管理员的密码
+        // 禁止重置其他管理员的密码
         SysUser target = userService.getById(id);
         if (target != null && "ADMIN".equals(target.getRole())) {
             return Result.error(403, "权限不足：无法重置管理者的密码");
@@ -136,7 +136,7 @@ public class UserController {
 
 
     // ==========================================
-    // 👤 通用权限：个人中心与画像维护接口
+    // 通用权限：个人中心维护接口
     // ==========================================
 
     @GetMapping("/info")
@@ -146,7 +146,7 @@ public class UserController {
 
         SysUser user = userService.getById(userId);
         if (user != null) {
-            // 🚨 论文亮点：后端数据脱敏 (Data Masking)。在 JSON 序列化返回前端前，主动擦除密码哈希。
+            // 后端数据脱敏 (Data Masking)。在 JSON 序列化返回前端前，主动擦除密码哈希。
             user.setPassword(null);
         }
         return Result.success(user);
@@ -159,7 +159,7 @@ public class UserController {
             return Result.error(400, "用户ID不能为空");
         }
 
-        // 🚨 论文亮点：防越权篡改 (Field-level Protection)。
+        // 防越权篡改 (Field-level Protection)。
         // 绝对不能直接使用 userService.updateById(user); 否则恶意抓包者可修改 totalPoints 和 totalHours！
         // 必须实例化一个全新的“安全沙箱”对象，按“白名单”放行允许修改的字段。
         SysUser updateEntity = new SysUser();

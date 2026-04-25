@@ -20,7 +20,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public SysUser login(String username, String password) {
         log.info("开始执行登录业务逻辑，账号: {}", username);
 
-        // 1. 构造查询条件：SELECT * FROM sys_user WHERE username = ?
+        // 1. 构造查询条件
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysUser::getUsername, username);
 
@@ -29,12 +29,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 2. 账号存在性校验
         if (user == null) {
             log.warn("登录失败：账号不存在 ({})", username);
-            // 💡 安全优化：对外提示统称为“账号或密码错误”，防止黑客“撞库”枚举出系统中存在的账号
+            // 对外提示统称为“账号或密码错误”，防止黑客“撞库”枚举出系统中存在的账号
             throw new ServiceException(400, "账号或密码错误！");
         }
 
         // 3. 密码校验 (采用 MD5 加密比对)
-        // 将前端传来的明文密码(如"123456") 转换为 MD5(变成"e10adc...")，再与数据库密文对比
         String md5Password = DigestUtils.md5DigestAsHex(password.getBytes());
         if (!user.getPassword().equals(md5Password)) {
             log.warn("登录失败：密码错误 ({})", username);
@@ -63,7 +62,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException(409, "该账号已被注册！");
         }
 
-        // 2. 🚨 密码加密 (将前端传来的明文密码转换为 MD5 密文后再存入数据库)
+        // 2. 密码加密 (将前端传来的明文密码转换为 MD5 密文后再存入数据库)
         String md5Password = DigestUtils.md5DigestAsHex(user.getPassword().getBytes());
         user.setPassword(md5Password);
 
@@ -73,8 +72,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             user.setRole("VOLUNTEER");
         }
 
-        user.setStatus(1);         // 状态正常
-        user.setTotalHours(new BigDecimal("0.00")); // 规范的 BigDecimal 赋值方式
+        user.setStatus(1);                                   // 状态正常
+        user.setTotalHours(new BigDecimal("0.00"));     // 规范的 BigDecimal 赋值方式
         user.setCurrentPoints(0);
         user.setTotalPoints(0);
 

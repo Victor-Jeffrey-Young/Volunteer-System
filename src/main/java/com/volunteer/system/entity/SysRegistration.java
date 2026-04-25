@@ -32,7 +32,6 @@ public class SysRegistration {
     @Schema(description = "提交报名的时间")
     private LocalDateTime applyTime;
 
-    // 🚨 补上刚才漏掉的审核时间字段
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     @Schema(description = "管理员审核时间")
     private LocalDateTime auditTime;
@@ -78,10 +77,10 @@ public class SysRegistration {
     private LocalDateTime activityStartTime;
 
     @TableField(exist = false)
-    private String phone; // 🚨 增加手机号
+    private String phone;
 
     @TableField(exist = false)
-    private String avatar; // 🚨 增加头像
+    private String avatar;
 
     @TableField(exist = false)
     @Schema(description = "志愿者拥有的技能(JSON)")

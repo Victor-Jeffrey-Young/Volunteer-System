@@ -1,109 +1,3 @@
-<script setup>
-import { ref, onMounted, watch } from 'vue';
-import { leaderboardApi, userApi } from '../../api/modules'; // 🚨 引入 userApi
-import { useUserStore } from '../../stores/user';
-import { getFullAvatar } from '../../utils/file';
-import { getLevelInfo } from '../../utils/levelRules';
-import {
-  Trophy,
-  Medal,
-  ArrowUp,
-  ArrowDown,
-  Minus,
-} from 'lucide-vue-next';
-
-const timeframe = ref('month');
-const category = ref('points');
-const leaderboardData = ref([]);
-const userStore = useUserStore();
-const myRank = ref('-');
-const loading = ref(false);
-
-const getLevel = (points) => {
-  return getLevelInfo(points).name;
-};
-
-// 🚨 修正：支持多轨制的真实趋势计算逻辑
-const getTrend = (user, currentRank) => {
-  // 根据当前所在的榜单分类，选择对应的历史名次字段
-  // 积分榜用 lastRank，时长榜用 lastHoursRank，获赞榜暂无历史排名字段
-  const lastRank = category.value === 'points'
-    ? (user.lastRank || 0)
-    : (category.value === 'hours' ? (user.lastHoursRank || 0) : 0);
-
-  if (lastRank === 0) return { color: 'text-slate-400', component: Minus, change: 0 };
-
-  const diff = lastRank - currentRank;
-
-  if (diff > 0) return { color: 'text-emerald-500', component: ArrowUp, change: diff };
-  if (diff < 0) return { color: 'text-red-500', component: ArrowDown, change: Math.abs(diff) };
-
-  return { color: 'text-slate-400', component: Minus, change: 0 };
-};
-
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const res = await userApi.getAllVolunteers();
-    const allUsers = res.data?.records || [];
-
-    const effectiveUserId = userStore.userId || localStorage.getItem('userId');
-
-    let sortedList = [];
-    if (category.value === 'points') {
-      sortedList = [...allUsers].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
-    } else if (category.value === 'hours') {
-      sortedList = [...allUsers].sort((a, b) => (b.totalHours || 0) - (a.totalHours || 0));
-    } else {
-      sortedList = [...allUsers].sort((a, b) => (b.likes || 0) - (a.likes || 0));
-    }
-
-    // 为每个用户注入“当前实时排名”属性，供模板计算趋势使用
-    leaderboardData.value = sortedList.map((user, index) => ({
-      ...user,
-      currentRealRank: index + 1
-    }));
-
-    // 计算当前登录用户的名次
-    if (effectiveUserId) {
-      const myIndex = sortedList.findIndex(item => String(item.userId) === String(effectiveUserId));
-      myRank.value = myIndex !== -1 ? myIndex + 1 : '500+';
-    }
-
-    leaderboardData.value = leaderboardData.value.slice(0, 50);
-  } catch (error) {
-    console.error("Fetch leaderboard error:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-onMounted(fetchData);
-
-// 监听分类切换
-watch(category, () => {
-  fetchData();
-});
-const renderTrendIcon = (trend, change) => {
-  if (trend === 'up') {
-    return { component: ArrowUp, color: 'text-emerald-500', change };
-  }
-  if (trend === 'down') {
-    return { component: ArrowDown, color: 'text-red-500', change };
-  }
-  return { component: Minus, color: 'text-slate-400', change: 0 };
-};
-
-const getRankStyle = (rank) => {
-  switch (rank) {
-    case 1: return 'bg-yellow-100 text-yellow-600 border-yellow-200';
-    case 2: return 'bg-slate-100 text-slate-500 border-slate-200';
-    case 3: return 'bg-orange-100 text-orange-600 border-orange-200';
-    default: return 'bg-white text-slate-500 border-slate-100';
-  }
-};
-</script>
-
 <template>
   <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
@@ -324,6 +218,113 @@ const getRankStyle = (rank) => {
             </div>
           </div>
         </div>
-        </div>    </div>
+        </div>
+    </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted, watch } from 'vue';
+import { leaderboardApi, userApi } from '../../api/modules'; // 引入 userApi
+import { useUserStore } from '../../stores/user';
+import { getFullAvatar } from '../../utils/file';
+import { getLevelInfo } from '../../utils/levelRules';
+import {
+  Trophy,
+  Medal,
+  ArrowUp,
+  ArrowDown,
+  Minus,
+} from 'lucide-vue-next';
+
+const timeframe = ref('month');
+const category = ref('points');
+const leaderboardData = ref([]);
+const userStore = useUserStore();
+const myRank = ref('-');
+const loading = ref(false);
+
+const getLevel = (points) => {
+  return getLevelInfo(points).name;
+};
+
+// 支持多轨制的真实趋势计算逻辑
+const getTrend = (user, currentRank) => {
+  // 根据当前所在的榜单分类，选择对应的历史名次字段
+  // 积分榜用 lastRank，时长榜用 lastHoursRank，获赞榜暂无历史排名字段
+  const lastRank = category.value === 'points'
+      ? (user.lastRank || 0)
+      : (category.value === 'hours' ? (user.lastHoursRank || 0) : 0);
+
+  if (lastRank === 0) return { color: 'text-slate-400', component: Minus, change: 0 };
+
+  const diff = lastRank - currentRank;
+
+  if (diff > 0) return { color: 'text-emerald-500', component: ArrowUp, change: diff };
+  if (diff < 0) return { color: 'text-red-500', component: ArrowDown, change: Math.abs(diff) };
+
+  return { color: 'text-slate-400', component: Minus, change: 0 };
+};
+
+const fetchData = async () => {
+  loading.value = true;
+  try {
+    const res = await userApi.getAllVolunteers();
+    const allUsers = res.data?.records || [];
+
+    const effectiveUserId = userStore.userId || localStorage.getItem('userId');
+
+    let sortedList = [];
+    if (category.value === 'points') {
+      sortedList = [...allUsers].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+    } else if (category.value === 'hours') {
+      sortedList = [...allUsers].sort((a, b) => (b.totalHours || 0) - (a.totalHours || 0));
+    } else {
+      sortedList = [...allUsers].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    }
+
+    // 为每个用户注入“当前实时排名”属性，供模板计算趋势使用
+    leaderboardData.value = sortedList.map((user, index) => ({
+      ...user,
+      currentRealRank: index + 1
+    }));
+
+    // 计算当前登录用户的名次
+    if (effectiveUserId) {
+      const myIndex = sortedList.findIndex(item => String(item.userId) === String(effectiveUserId));
+      myRank.value = myIndex !== -1 ? myIndex + 1 : '500+';
+    }
+
+    leaderboardData.value = leaderboardData.value.slice(0, 50);
+  } catch (error) {
+    console.error("Fetch leaderboard error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(fetchData);
+
+// 监听分类切换
+watch(category, () => {
+  fetchData();
+});
+const renderTrendIcon = (trend, change) => {
+  if (trend === 'up') {
+    return { component: ArrowUp, color: 'text-emerald-500', change };
+  }
+  if (trend === 'down') {
+    return { component: ArrowDown, color: 'text-red-500', change };
+  }
+  return { component: Minus, color: 'text-slate-400', change: 0 };
+};
+
+const getRankStyle = (rank) => {
+  switch (rank) {
+    case 1: return 'bg-yellow-100 text-yellow-600 border-yellow-200';
+    case 2: return 'bg-slate-100 text-slate-500 border-slate-200';
+    case 3: return 'bg-orange-100 text-orange-600 border-orange-200';
+    default: return 'bg-white text-slate-500 border-slate-100';
+  }
+};
+</script>

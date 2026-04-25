@@ -11,10 +11,10 @@ export const activityApi = {
 	// 获取活动列表 (对应 ActivityController)
 	getActivities: (params) => request.get('/api/activity/page', {
 		params: {
-			current: params?.current || params?.page || 1, // 🚨 支持多种参数名兼容
-			size: params?.size || params?.pageSize || 10,  // 🚨 优先取 size，解决 6 个/页失效问题
+			current: params?.current || params?.page || 1, // 支持多种参数名兼容
+			size: params?.size || params?.pageSize || 10,  // 优先取 size，解决 6 个/页失效问题
 			title: params?.title || '',
-			type: params?.type, // 🚨 补全缺失的分类过滤
+			type: params?.type, 						   // 分类过滤
 			status: (params?.status === '全部' || params?.status === null) ? undefined : params?.status
 		}
 	}),
@@ -38,7 +38,7 @@ export const announcementApi = {
 	markAllAsRead: (userId) => request.post('/api/notice/read-all', null, { params: { userId } })
 };
 
-// 积分商城 API (🚨 修正：后端没有非 admin 列表，尝试调用 admin 接口)
+// 积分商城 API
 export const mallApi = {
 	getProducts: () => request.get('/api/shop/admin/page', {
 		params: { current: 1, size: 100 }
@@ -51,25 +51,25 @@ export const mallApi = {
 	})
 };
 
-// 排行榜 API (🚨 修正：使用 Dashboard 接口)
+// 排行榜 API
 export const leaderboardApi = {
 	getLeaderboard: (type = 'points') => request.get('/api/dashboard/volunteer/rank', {
 		params: { type }
 	})
 };
 
-// 数据看板 (🚨 新增)
+// 数据看板 API
 export const dashboardApi = {
 	getBaseData: () => request.get('/api/dashboard/base')
 };
 
-// 用户信息 (对应 UserController)
+// 用户信息 API
 export const userApi = {
 	getUserInfo: (userId) => request.get('/api/user/info', { params: { userId } }),
-	// 🚨 补全：头像上传接口
+	// 头像上传接口
 	uploadAvatar: (file) => {
 		const formData = new FormData();
-		formData.append('file', file); // 🚨 注意：后端参数名叫 file
+		formData.append('file', file); // 后端参数名叫 file
 		return request.post('/api/file/upload', formData, {
 			headers: { 'Content-Type': 'multipart/form-data' }
 		});
@@ -78,7 +78,7 @@ export const userApi = {
 	getAllVolunteers: () => request.get('/api/user/page', {
 		params: { current: 1, size: 500, role: 'VOLUNTEER' }
 	}),
-	// 🚨 核心：资料更新与安全中心
+	// 资料更新与安全中心
 	updateProfile: (data) => request.put('/api/user/profile', data),
 	updatePassword: (data) => request.put('/api/user/password', data)
 };

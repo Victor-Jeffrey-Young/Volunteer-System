@@ -24,7 +24,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     private SysActivityService activityService;
 
     @Autowired
-    private SysUserService userService; // 🚨 注入 User 服务，用于更新总时长
+    private SysUserService userService; // 注入 User 服务，用于更新总时长
 
     // 开启数据库事务，保证报名表和活动表同时更新成功或同时回滚
     // 1. 修复：报名接口 (允许多次报名，保留被拒绝的历史记录)
@@ -35,7 +35,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         if (activity == null || activity.getStatus() != 0) throw new ServiceException(404, "活动不存在或已停止招募");
         if (activity.getCurrentNum() >= activity.getCapacity()) throw new ServiceException(400, "名额已满！");
 
-        // 🚨 修复问题2：不再使用 getOne，而是只拦截那些“正在进行中”的状态 (0,1,3,5)
+        // 不再使用 getOne，而是只拦截那些“正在进行中”的状态 (0,1,3,5)
         LambdaQueryWrapper<SysRegistration> query = new LambdaQueryWrapper<>();
         query.eq(SysRegistration::getUserId, userId)
                 .eq(SysRegistration::getActivityId, activityId)
@@ -84,7 +84,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         // 1. 校验报名状态
         if (reg.getStatus() != 1) throw new ServiceException(400, "只有【审核通过】的状态才能签到");
 
-        // 2. 🚨 新增：校验活动状态和时间
+        // 2. 校验活动状态和时间
         SysActivity activity = activityService.getById(reg.getActivityId());
         if (activity == null) throw new ServiceException(404, "活动不存在");
 
@@ -108,7 +108,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         this.updateById(reg);
     }
 
-    // 2. 🚨 新增：签退打卡 (结束)
+    // 2. 签退打卡 (结束)
     public void signOut(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
@@ -119,7 +119,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         this.updateById(reg);
     }
 
-    // 3. 🚨 修复：发放工时与积分
+    // 3. 发放工时与积分
     @Transactional(rollbackFor = Exception.class)
     public void grantHours(Long regId, BigDecimal actualHours) {
         SysRegistration reg = this.getById(regId);

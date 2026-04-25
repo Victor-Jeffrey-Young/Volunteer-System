@@ -7,7 +7,7 @@
       @click="mobileMenuOpen = false"
     ></div>
 
-    <!-- 侧边栏 (响应式：PC 侧边, 移动端抽屉) -->
+    <!-- 侧边栏 -->
     <div class="sidebar" :class="{ 'collapsed': isCollapsed, 'mobile-open': mobileMenuOpen }">
       <div class="logo-container">
         <div class="logo-circle">
@@ -39,7 +39,7 @@
     <div class="main-container">
       <header class="admin-header">
         <div class="header-left flex items-center gap-4">
-          <!-- 🍔 移动端菜单按钮 -->
+          <!-- 移动端菜单按钮 -->
           <button 
             class="mobile-menu-btn" 
             @click="mobileMenuOpen = !mobileMenuOpen"
@@ -134,7 +134,7 @@ const currentPageName = computed(() => {
 
 const navigateTo = (path) => {
   router.push(path);
-  if (isMobile.value) mobileMenuOpen.value = false; // 🚨 点击后自动关闭菜单
+  if (isMobile.value) mobileMenuOpen.value = false; // 点击后自动关闭菜单
 };
 
 const handleLogout = () => {

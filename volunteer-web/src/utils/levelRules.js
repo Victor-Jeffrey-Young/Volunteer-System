@@ -18,13 +18,3 @@ export const getLevelInfo = (points) => {
         return { icon: '👑', name: 'V5 卓越志愿者', type: 'danger', color: '#ef4444' };
     }
 };
-
-/**
- * 获取默认头像
- * 🚨 关键：必须传入 username (账号)，不要传 realName，因为账号是唯一的且英文的，生成的头像更稳定
- */
-export const getDefaultAvatar = (username) => {
-    const seed = username || 'default_user';
-    // 🚨 将 7.x 改为最新的 9.x，避开旧服务器的宕机节点
-    return `https://api.dicebear.com/9.x/miniavs/svg?seed=${seed}`;
-};

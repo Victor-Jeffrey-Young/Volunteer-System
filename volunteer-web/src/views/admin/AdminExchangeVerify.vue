@@ -31,7 +31,7 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- 🖥️ PC 端视图：标准表格 -->
+      <!-- PC 端视图：标准表格 -->
       <!-- ========================================== -->
       <el-table
           v-if="!isMobile"
@@ -103,7 +103,7 @@
       </el-table>
 
       <!-- ========================================== -->
-      <!-- 📱 移动端视图：流水账单卡片 -->
+      <!-- 移动端视图：流水账单卡片 -->
       <!-- ========================================== -->
       <div v-else class="mobile-list" v-loading="loading">
         <div v-for="item in recordList" :key="item.recordId" class="m-bill-card">
@@ -260,7 +260,7 @@ onUnmounted(() => {
 .filter-select { width: 140px; }
 .pagination-box { margin-top: 25px; display: flex; justify-content: flex-end; }
 
-/* 🚨 核心：现代橙色表格皮肤 */
+/* 橙色表格皮肤 */
 :deep(.el-table) {
   --el-table-border-color: #e2e8f0;
   --el-table-header-bg-color: #f8fafc;
@@ -279,7 +279,7 @@ onUnmounted(() => {
 }
 
 /* ====================================================
-   📱 移动端适配 (小于 768px)
+   移动端适配 (小于 768px)
    ==================================================== */
 @media screen and (max-width: 768px) {
   .exchange-audit-container { padding: 5px; }
@@ -356,8 +356,8 @@ onUnmounted(() => {
   /* 3. 核心修复：让头像图标和名字“抱团” */
   .m-user-row {
     display: flex;
-    align-items: center; /* 确保图标和文字垂直对齐 */
-    gap: 6px;           /* 🚨 这里是关键：调整图标和文字的间距 */
+    align-items: center;
+    gap: 6px;
     font-size: 13px;
     color: #666;
   }

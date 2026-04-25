@@ -1,8 +1,8 @@
 <template>
   <div class="wish-pool-container">
     <el-tabs v-model="activeTab" class="custom-tabs">
-      <!-- 🌟 TAB 1: 心愿池大厅 -->
-      <el-tab-pane label="🌟 许愿大厅" name="pool">
+      <!-- 微心愿池大厅 -->
+      <el-tab-pane label="微心愿大厅" name="pool">
         <div class="wish-grid" v-loading="loading">
           <div v-for="item in wishPool" :key="item.wishId" class="wish-card">
             <div class="wish-content">
@@ -35,8 +35,8 @@
         </div>
       </el-tab-pane>
 
-      <!-- 👤 TAB 2: 我的任务 -->
-      <el-tab-pane label="👤 我的任务" name="my">
+      <!-- 我的任务 -->
+      <el-tab-pane label="我的任务" name="my">
         <div class="wish-grid" v-loading="loading">
           <div v-for="item in myWishes" :key="item.wishId" class="wish-card my-wish-card">
             <div class="wish-content">

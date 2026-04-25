@@ -72,7 +72,7 @@
               <el-icon style="margin-right: 4px;"><Delete /></el-icon> 删除记录
             </el-button>
 
-            <!-- 新增：状态已确认/已达成，且没点过赞，即可单独补充点赞 -->
+            <!-- 状态已确认/已达成，且没点过赞，即可单独补充点赞 -->
             <el-button 
               v-if="(item.status === 6 || item.status === 3) && item.isLiked !== 1"
               color="#f59e0b"
@@ -433,7 +433,7 @@ onMounted(() => {
   fetchMyWishes();
   window.addEventListener('resize', handleResize);
   
-  // 🚨 检查是否需要自动打开弹窗
+  // 检查是否需要自动打开弹窗
   if (route.query.action === 'create') {
     openDialog();
   }

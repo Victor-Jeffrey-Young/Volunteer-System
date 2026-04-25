@@ -27,7 +27,7 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- 🖥️ PC 端视图：标准表格 -->
+      <!-- PC 端视图：标准表格 -->
       <!-- ========================================== -->
       <el-table v-if="!isMobile" :data="goodsList" stripe style="width: 100%; margin-top: 20px;" v-loading="loading">
         <el-table-column prop="goodsId" label="ID" width="70" align="center" />
@@ -81,7 +81,7 @@
       </el-table>
 
       <!-- ========================================== -->
-      <!-- 📱 移动端视图：电商卡片列表 -->
+      <!-- 移动端视图：电商卡片列表 -->
       <!-- ========================================== -->
       <div v-else class="mobile-list" v-loading="loading">
         <div v-for="item in goodsList" :key="item.goodsId" class="m-goods-card">
@@ -150,8 +150,9 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="初始库存" prop="stock">
-              <el-input-number v-model="form.stock" :min="0" :step="5" style="width: 100%;" controls-position="right" />
+            <el-form-item label="库存数量" prop="stock">
+              <el-input-number v-model="form.stock" :min="form.goodsId ? 0 : 1" :step="5" style="width: 100%;"
+                controls-position="right" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -168,7 +169,7 @@
           </el-select>
         </el-form-item>
 
-        <!-- 📷 图片上传项 (适配移动端) -->
+        <!-- 图片上传项 (适配移动端) -->
         <el-form-item label="商品图片" prop="image">
           <div class="upload-container" :class="{ 'mobile-upload': isMobile }">
             <!-- 上传组件 -->
@@ -277,7 +278,7 @@ const form = ref({
   goodsId: null, name: '', category: '', description: '', pointsRequired: 100, stock: 10, image: ''
 });
 
-// 🚨 新增：让 el-upload 也能携带 Token 和角色，穿透后端的拦截器
+// 让 el-upload 携带 Token 和角色，穿透后端的拦截器
 const uploadHeaders = {
   Authorization: 'Bearer ' + localStorage.getItem('token'),
   Role: localStorage.getItem('role')
@@ -286,8 +287,25 @@ const uploadHeaders = {
 const rules = {
   name: [{ required: true, message: '名称必填', trigger: 'blur' }],
   category: [{ required: true, message: '分类必选', trigger: 'change' }],
-  pointsRequired: [{ required: true, message: '积分必填', trigger: 'blur' }],
-  stock: [{ required: true, message: '库存必填', trigger: 'blur' }]
+  pointsRequired: [
+    { required: true, message: '积分必填', trigger: 'blur' },
+    { type: 'number', min: 0, message: '积分不能为负数', trigger: 'blur' }
+  ],
+  stock: [
+    { required: true, message: '库存必填', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (!form.value.goodsId && value <= 0) {
+          callback(new Error('上架初始库存必须大于 0'));
+        } else if (value < 0) {
+          callback(new Error('库存不能为负数'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'change'
+    }
+  ]
 };
 
 const formatTime = (str) => str ? str.replace('T', ' ') : '--';
@@ -366,7 +384,7 @@ const startScan = async () => {
     { facingMode: "environment" },
     { fps: 10, qrbox: { width: 250, height: 250 } },
     async (decodedText) => {
-      // 🚨 防抖逻辑
+      // 防抖逻辑
       if (isProcessing) return;
       isProcessing = true;
 
@@ -541,7 +559,7 @@ onUnmounted(() => {
   color: #909399;
 }
 
-/* 🚨 核心：现代橙色表格皮肤 */
+/* 橙色表格皮肤 */
 :deep(.el-table) {
   --el-table-border-color: #e2e8f0;
   --el-table-header-bg-color: #f8fafc;
@@ -563,7 +581,7 @@ onUnmounted(() => {
 }
 
 /* ====================================================
-   📱 移动端电商卡片布局 (小于 768px)
+   移动端卡片布局 (小于 768px)
    ==================================================== */
 @media screen and (max-width: 768px) {
   .goods-manage-container {

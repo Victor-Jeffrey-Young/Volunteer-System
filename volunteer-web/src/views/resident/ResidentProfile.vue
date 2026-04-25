@@ -1,112 +1,3 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useUserStore } from '../../stores/user';
-import { useRouter } from 'vue-router';
-import { userApi } from '../../api/modules';
-import { ElMessage } from 'element-plus';
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  ShieldCheck, 
-  Camera,
-  MapPin,
-  Save,
-  Key,
-  LogOut
-} from 'lucide-vue-next';
-
-const userStore = useUserStore();
-const router = useRouter();
-const loading = ref(false);
-const submitting = ref(false);
-
-const form = ref({
-    userId: null,
-    username: '',
-    realName: '',
-    phone: '',
-    email: '',
-    gender: 1,
-    avatar: '',
-    availableTime: '' // 居民端可作为补充联系地址
-});
-
-const pwdForm = ref({
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-});
-
-const showPwdDialog = ref(false);
-
-const fetchData = async () => {
-    if (!userStore.userId) return;
-    loading.value = true;
-    try {
-        const res = await userApi.getUserInfo(userStore.userId);
-        if (res.data) {
-            form.value = { ...res.data };
-        }
-    } catch (err) {
-        console.error('Fetch user info error:', err);
-    } finally {
-        loading.value = false;
-    }
-};
-
-onMounted(fetchData);
-
-const handleUpdateProfile = async () => {
-    submitting.value = true;
-    try {
-        await userApi.updateProfile(form.value);
-        ElMessage.success('个人资料已成功更新');
-        userStore.fetchCurrentUser(); // 同步全局状态
-    } catch (err) {
-        console.error('Update profile error:', err);
-    } finally {
-        submitting.value = false;
-    }
-};
-
-const handleUpdatePassword = async () => {
-    if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
-        return ElMessage.error('两次输入的新密码不一致');
-    }
-    try {
-        await userApi.updatePassword({
-            userId: userStore.userId,
-            oldPassword: pwdForm.value.oldPassword,
-            newPassword: pwdForm.value.newPassword
-        });
-        ElMessage.success('密码修改成功，请牢记新密码');
-        showPwdDialog.value = false;
-        pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
-    } catch (err) {
-        console.error('Update password error:', err);
-    }
-};
-
-const handleAvatarUpload = async (file) => {
-    try {
-        const res = await userApi.uploadAvatar(file.raw);
-        if (res.data) {
-            form.value.avatar = res.data;
-            ElMessage.success('头像上传成功');
-        }
-    } catch (err) {
-        console.error('Upload avatar error:', err);
-        ElMessage.error('上传失败，请稍后重试');
-    }
-};
-
-const handleLogout = () => {
-    userStore.logout();
-    router.push('/login');
-};
-</script>
-
 <template>
   <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
@@ -247,6 +138,115 @@ const handleLogout = () => {
     </el-dialog>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useUserStore } from '../../stores/user';
+import { useRouter } from 'vue-router';
+import { userApi } from '../../api/modules';
+import { ElMessage } from 'element-plus';
+import {
+  User,
+  Phone,
+  Mail,
+  ShieldCheck,
+  Camera,
+  MapPin,
+  Save,
+  Key,
+  LogOut
+} from 'lucide-vue-next';
+
+const userStore = useUserStore();
+const router = useRouter();
+const loading = ref(false);
+const submitting = ref(false);
+
+const form = ref({
+  userId: null,
+  username: '',
+  realName: '',
+  phone: '',
+  email: '',
+  gender: 1,
+  avatar: '',
+  availableTime: '' // 居民端可作为补充联系地址
+});
+
+const pwdForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+});
+
+const showPwdDialog = ref(false);
+
+const fetchData = async () => {
+  if (!userStore.userId) return;
+  loading.value = true;
+  try {
+    const res = await userApi.getUserInfo(userStore.userId);
+    if (res.data) {
+      form.value = { ...res.data };
+    }
+  } catch (err) {
+    console.error('Fetch user info error:', err);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(fetchData);
+
+const handleUpdateProfile = async () => {
+  submitting.value = true;
+  try {
+    await userApi.updateProfile(form.value);
+    ElMessage.success('个人资料已成功更新');
+    userStore.fetchCurrentUser(); // 同步全局状态
+  } catch (err) {
+    console.error('Update profile error:', err);
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleUpdatePassword = async () => {
+  if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
+    return ElMessage.error('两次输入的新密码不一致');
+  }
+  try {
+    await userApi.updatePassword({
+      userId: userStore.userId,
+      oldPassword: pwdForm.value.oldPassword,
+      newPassword: pwdForm.value.newPassword
+    });
+    ElMessage.success('密码修改成功，请牢记新密码');
+    showPwdDialog.value = false;
+    pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+  } catch (err) {
+    console.error('Update password error:', err);
+  }
+};
+
+const handleAvatarUpload = async (file) => {
+  try {
+    const res = await userApi.uploadAvatar(file.raw);
+    if (res.data) {
+      form.value.avatar = res.data;
+      ElMessage.success('头像上传成功');
+    }
+  } catch (err) {
+    console.error('Upload avatar error:', err);
+    ElMessage.error('上传失败，请稍后重试');
+  }
+};
+
+const handleLogout = () => {
+  userStore.logout();
+  router.push('/login');
+};
+</script>
 
 <style scoped>
 :deep(.el-input__wrapper) {

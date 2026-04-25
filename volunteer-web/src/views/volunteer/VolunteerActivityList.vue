@@ -1,197 +1,3 @@
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { activityApi, userApi } from '../../api/modules';
-import { ElMessage } from 'element-plus';
-import {
-  Search,
-  Filter,
-  MapPin,
-  Calendar,
-  Clock,
-  Users,
-  CheckCircle,
-  X,
-  Sparkles,
-} from 'lucide-vue-next';
-
-import { useUserStore } from '../../stores/user';
-import request from '../../utils/request';
-
-const userStore = useUserStore();
-const activeTab = ref('全部');
-const statusFilter = ref('全部');
-const confirmSignupActivity = ref(null);
-const signupSuccessActivity = ref(null);
-const activities = ref([]);
-const registeredIds = ref(new Set());
-const userSkills = ref([]); // 🚨 记录当前用户的专业技能
-const loading = ref(false);
-
-// 分页与搜索状态
-const searchTitle = ref('');
-const currentPage = ref(1);
-const pageSize = ref(6);
-const total = ref(0);
-
-// 辅助：解析 JSON 技能 (增加对下划线命名的兼容)
-const parseSkills = (activityOrStr) => {
-  if (!activityOrStr) return [];
-
-  let rawData = '';
-  if (typeof activityOrStr === 'object') {
-    rawData = activityOrStr.requiredSkills || activityOrStr.required_skills;
-  } else {
-    rawData = activityOrStr;
-  }
-
-  try {
-    const parsed = JSON.parse(rawData || '[]');
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (e) {
-    return rawData ? [rawData] : [];
-  }
-};
-
-const hasRequiredSkills = (activity) => {
-  return parseSkills(activity).length > 0;
-};
-
-// 辅助：计算技能匹配度
-const getMatchResult = (activity) => {
-  const required = parseSkills(activity);
-  if (required.length === 0) return { status: 'general', label: '通用岗位', color: 'text-slate-500' };
-
-  const matched = required.filter(s => userSkills.value.includes(s));
-  const percent = Math.round((matched.length / required.length) * 100);
-
-  if (percent === 100) return { status: 'perfect', label: '专业对口 (100%)', color: 'text-emerald-600' };
-  if (percent > 0) return { status: 'partial', label: `技能匹配 (${percent}%)`, color: 'text-orange-600' };
-  return { status: 'missing', label: '技能暂不匹配', color: 'text-rose-500' };
-};
-
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const params = {
-      current: currentPage.value,
-      size: pageSize.value,
-      title: searchTitle.value,
-      type: activeTab.value === '全部' ? undefined : activeTab.value,
-      status: statusFilter.value === '全部' ? undefined : statusFilter.value
-    };
-    const res = await activityApi.getActivities(params);
-    activities.value = res.data?.records || [];
-    total.value = res.data?.total || 0;
-
-    const uid = userStore.userId || localStorage.getItem('userId');
-    if (uid) {
-      // 1. 获取已报名 ID
-      const regRes = await activityApi.getMySignups(uid);
-      const allRegs = regRes.data || [];
-
-      // 🚨 核心修复：只有处于 待审(0)、通过(1)、完结(3)、签到(5)、签退(6) 状态才视为“已占用”
-      // 拒绝(2) 和 取消(4) 的记录不应阻止用户重新报名
-      const activeRegs = allRegs.filter(r => ![2, 4].includes(r.status));
-      registeredIds.value = new Set(activeRegs.map(r => r.activityId));
-
-      // 2. 关键优化：先确保 userStore 里的数据是最新的
-      if (!userStore.user) {
-        await userStore.fetchCurrentUser();
-      }
-
-      // 3. 从最新的 user 对象中获取技能
-      const uData = userStore.user || {};
-      try {
-        userSkills.value = JSON.parse(uData.skills || '[]');
-      } catch (e) {
-        userSkills.value = uData.skills ? [uData.skills] : [];
-      }
-    }
-  } catch (error) {
-    console.error("Fetch activities error:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handlePageChange = (page) => {
-  currentPage.value = page;
-  fetchData();
-};
-
-const handleSearch = () => {
-  currentPage.value = 1;
-  fetchData();
-};
-
-onMounted(fetchData);
-
-const categories = ['全部', '社区服务', '环境保护', '教育助学', '助老服务', '医疗支援', '文化艺术', '技术支持', '赛事服务', '其他'];
-
-// 活动分类 → 本地配图映射
-const categoryImageMap = {
-  '社区服务': '/Community Services.png',
-  '环境保护': '/Environmental Protection.png',
-  '教育助学': '/Educational Assistance.png',
-  '助老服务': '/Elderly Care Services.png',
-  '医疗支援': '/Medical Support.png',
-  '文化艺术': '/Culture and Arts.png',
-  '技术支持': '/Technical Support.png',
-  '赛事服务': '/Event Services.png',
-  '其他': '/Others.png',
-};
-
-const getCategoryCover = (activity) => {
-  // 优先使用活动自带封面
-  if (activity.cover) return activity.cover;
-  // 根据分类匹配本地配图
-  return categoryImageMap[activity.type] || '/Others.png';
-};
-const statusOptions = [
-  { label: '全部', value: '全部' },
-  { label: '招募中', value: 0 },
-  { label: '进行中', value: 1 },
-  { label: '已结束', value: 2 }
-];
-
-watch(activeTab, () => {
-  currentPage.value = 1;
-  fetchData();
-});
-
-watch(statusFilter, () => {
-  currentPage.value = 1;
-  fetchData();
-});
-
-const handleSignup = (activity) => {
-  if (registeredIds.value.has(activity.activityId)) {
-    return ElMessage.warning('您已经报名参加过该活动了');
-  }
-  if (activity.status !== 0) {
-    return ElMessage.warning('该活动目前不在招募阶段');
-  }
-  if (activity.currentNum >= activity.capacity) {
-    return ElMessage.warning('抱歉，该活动名额已满');
-  }
-  confirmSignupActivity.value = activity;
-};
-
-const confirmSignup = async () => {
-  if (confirmSignupActivity.value) {
-    try {
-      const uid = userStore.userId || localStorage.getItem('userId');
-      await activityApi.signup(uid, confirmSignupActivity.value.activityId);
-      signupSuccessActivity.value = confirmSignupActivity.value;
-      confirmSignupActivity.value = null;
-      fetchData();
-    } catch (error) {
-      console.error("Signup error:", error);
-    }
-  }
-};
-</script>
-
 <template>
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header & Search -->
@@ -373,7 +179,7 @@ const confirmSignup = async () => {
             </div>
           </div>
 
-          <!-- 🚨 技能需求与匹配评估展示 -->
+          <!-- 技能需求与匹配评估展示 -->
           <div v-if="hasRequiredSkills(confirmSignupActivity)" class="mb-6">
             <div class="flex items-center justify-between mb-2">
               <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">专业技能评估</p>
@@ -469,6 +275,200 @@ const confirmSignup = async () => {
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { activityApi, userApi } from '../../api/modules';
+import { ElMessage } from 'element-plus';
+import {
+  Search,
+  Filter,
+  MapPin,
+  Calendar,
+  Clock,
+  Users,
+  CheckCircle,
+  X,
+  Sparkles,
+} from 'lucide-vue-next';
+
+import { useUserStore } from '../../stores/user';
+import request from '../../utils/request';
+
+const userStore = useUserStore();
+const activeTab = ref('全部');
+const statusFilter = ref('全部');
+const confirmSignupActivity = ref(null);
+const signupSuccessActivity = ref(null);
+const activities = ref([]);
+const registeredIds = ref(new Set());
+const userSkills = ref([]);
+const loading = ref(false);
+
+// 分页与搜索状态
+const searchTitle = ref('');
+const currentPage = ref(1);
+const pageSize = ref(6);
+const total = ref(0);
+
+// 辅助：解析 JSON 技能 (增加对下划线命名的兼容)
+const parseSkills = (activityOrStr) => {
+  if (!activityOrStr) return [];
+
+  let rawData = '';
+  if (typeof activityOrStr === 'object') {
+    rawData = activityOrStr.requiredSkills || activityOrStr.required_skills;
+  } else {
+    rawData = activityOrStr;
+  }
+
+  try {
+    const parsed = JSON.parse(rawData || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return rawData ? [rawData] : [];
+  }
+};
+
+const hasRequiredSkills = (activity) => {
+  return parseSkills(activity).length > 0;
+};
+
+// 辅助：计算技能匹配度
+const getMatchResult = (activity) => {
+  const required = parseSkills(activity);
+  if (required.length === 0) return { status: 'general', label: '通用岗位', color: 'text-slate-500' };
+
+  const matched = required.filter(s => userSkills.value.includes(s));
+  const percent = Math.round((matched.length / required.length) * 100);
+
+  if (percent === 100) return { status: 'perfect', label: '专业对口 (100%)', color: 'text-emerald-600' };
+  if (percent > 0) return { status: 'partial', label: `技能匹配 (${percent}%)`, color: 'text-orange-600' };
+  return { status: 'missing', label: '技能暂不匹配', color: 'text-rose-500' };
+};
+
+const fetchData = async () => {
+  loading.value = true;
+  try {
+    const params = {
+      current: currentPage.value,
+      size: pageSize.value,
+      title: searchTitle.value,
+      type: activeTab.value === '全部' ? undefined : activeTab.value,
+      status: statusFilter.value === '全部' ? undefined : statusFilter.value
+    };
+    const res = await activityApi.getActivities(params);
+    activities.value = res.data?.records || [];
+    total.value = res.data?.total || 0;
+
+    const uid = userStore.userId || localStorage.getItem('userId');
+    if (uid) {
+      // 1. 获取已报名 ID
+      const regRes = await activityApi.getMySignups(uid);
+      const allRegs = regRes.data || [];
+
+      // 只有处于 待审(0)、通过(1)、完结(3)、签到(5)、签退(6) 状态才视为“已占用”
+      // 拒绝(2) 和 取消(4) 的记录不应阻止用户重新报名
+      const activeRegs = allRegs.filter(r => ![2, 4].includes(r.status));
+      registeredIds.value = new Set(activeRegs.map(r => r.activityId));
+
+      // 2. 关键优化：先确保 userStore 里的数据是最新的
+      if (!userStore.user) {
+        await userStore.fetchCurrentUser();
+      }
+
+      // 3. 从最新的 user 对象中获取技能
+      const uData = userStore.user || {};
+      try {
+        userSkills.value = JSON.parse(uData.skills || '[]');
+      } catch (e) {
+        userSkills.value = uData.skills ? [uData.skills] : [];
+      }
+    }
+  } catch (error) {
+    console.error("Fetch activities error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handlePageChange = (page) => {
+  currentPage.value = page;
+  fetchData();
+};
+
+const handleSearch = () => {
+  currentPage.value = 1;
+  fetchData();
+};
+
+onMounted(fetchData);
+
+const categories = ['全部', '社区服务', '环境保护', '教育助学', '助老服务', '医疗支援', '文化艺术', '技术支持', '赛事服务', '其他'];
+
+// 活动分类 → 本地配图映射
+const categoryImageMap = {
+  '社区服务': '/Community Services.png',
+  '环境保护': '/Environmental Protection.png',
+  '教育助学': '/Educational Assistance.png',
+  '助老服务': '/Elderly Care Services.png',
+  '医疗支援': '/Medical Support.png',
+  '文化艺术': '/Culture and Arts.png',
+  '技术支持': '/Technical Support.png',
+  '赛事服务': '/Event Services.png',
+  '其他': '/Others.png',
+};
+
+const getCategoryCover = (activity) => {
+  // 优先使用活动自带封面
+  if (activity.cover) return activity.cover;
+  // 根据分类匹配本地配图
+  return categoryImageMap[activity.type] || '/Others.png';
+};
+const statusOptions = [
+  { label: '全部', value: '全部' },
+  { label: '招募中', value: 0 },
+  { label: '进行中', value: 1 },
+  { label: '已结束', value: 2 }
+];
+
+watch(activeTab, () => {
+  currentPage.value = 1;
+  fetchData();
+});
+
+watch(statusFilter, () => {
+  currentPage.value = 1;
+  fetchData();
+});
+
+const handleSignup = (activity) => {
+  if (registeredIds.value.has(activity.activityId)) {
+    return ElMessage.warning('您已经报名参加过该活动了');
+  }
+  if (activity.status !== 0) {
+    return ElMessage.warning('该活动目前不在招募阶段');
+  }
+  if (activity.currentNum >= activity.capacity) {
+    return ElMessage.warning('抱歉，该活动名额已满');
+  }
+  confirmSignupActivity.value = activity;
+};
+
+const confirmSignup = async () => {
+  if (confirmSignupActivity.value) {
+    try {
+      const uid = userStore.userId || localStorage.getItem('userId');
+      await activityApi.signup(uid, confirmSignupActivity.value.activityId);
+      signupSuccessActivity.value = confirmSignupActivity.value;
+      confirmSignupActivity.value = null;
+      fetchData();
+    } catch (error) {
+      console.error("Signup error:", error);
+    }
+  }
+};
+</script>
 
 <style scoped>
 .hide-scrollbar::-webkit-scrollbar {

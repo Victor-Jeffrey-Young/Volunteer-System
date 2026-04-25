@@ -1,35 +1,3 @@
-<script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRoute, useRouter, RouterLink } from 'vue-router';
-import { getFullAvatar } from '../utils/file';
-import { useUserStore } from '../stores/user';
-import { Heart, Menu, X, Home, HeartHandshake, User, LogOut } from 'lucide-vue-next';
-
-const route = useRoute();
-const router = useRouter();
-const userStore = useUserStore();
-
-const userAvatar = computed(() => getFullAvatar(userStore.user?.avatar || localStorage.getItem('avatar')));
-const userName = computed(() => userStore.user?.realName || localStorage.getItem('realName') || '社区居民');
-
-const navLinks = [
-  { name: '首页', path: '/resident/home', icon: Home },
-  { name: '微心愿管理', path: '/resident/wishes', icon: HeartHandshake },
-  { name: '账号设置', path: '/resident/profile', icon: User },
-];
-
-const isActive = (path) => route.path.includes(path);
-
-const handleLogout = () => {
-    userStore.logout();
-    router.push('/login');
-};
-
-onMounted(() => {
-    userStore.fetchCurrentUser();
-});
-</script>
-
 <template>
   <div class="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
     <!-- Header -->
@@ -92,3 +60,36 @@ onMounted(() => {
 
   </div>
 </template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
+import { getFullAvatar } from '../utils/file';
+import { useUserStore } from '../stores/user';
+import { Heart, Home, HeartHandshake, User,} from 'lucide-vue-next';
+
+const route = useRoute();
+const router = useRouter();
+const userStore = useUserStore();
+
+const userAvatar = computed(() => getFullAvatar(userStore.user?.avatar || localStorage.getItem('avatar')));
+const userName = computed(() => userStore.user?.realName || localStorage.getItem('realName') || '社区居民');
+
+const navLinks = [
+  { name: '首页', path: '/resident/home', icon: Home },
+  { name: '微心愿管理', path: '/resident/wishes', icon: HeartHandshake },
+  { name: '账号设置', path: '/resident/profile', icon: User },
+];
+
+const isActive = (path) => route.path.includes(path);
+
+const handleLogout = () => {
+  userStore.logout();
+  router.push('/login');
+};
+
+onMounted(() => {
+  userStore.fetchCurrentUser();
+});
+</script>
+

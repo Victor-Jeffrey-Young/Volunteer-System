@@ -29,7 +29,7 @@
       </div>
 
       <!-- ========================================== -->
-      <!-- 🖥️ PC 端视图：标准表格 -->
+      <!-- PC 端视图：标准表格 -->
       <!-- ========================================== -->
       <el-table
           v-if="!isMobile"
@@ -45,7 +45,7 @@
               <div style="display: flex; flex-direction: column; line-height: 1.4;">
                 <span style="font-weight: bold; color: #303133;">{{ scope.row.realName }}</span>
                 <span style="font-size: 11px; color: #909399;">UID: {{ scope.row.userId }}</span>
-                <!-- 🚨 终极兼容：尝试读取所有可能的字段名 -->
+                <!-- 尝试读取所有可能的字段名 -->
                 <span style="font-size: 11px; color: #409eff; font-family: monospace;">
                   {{ scope.row.phone || scope.row.userPhone || scope.row.contact || '未绑定号码' }}
                 </span>
@@ -114,7 +114,7 @@
       </el-table>
 
       <!-- ========================================== -->
-      <!-- 📱 移动端视图：业务卡片列表 -->
+      <!-- 移动端视图：业务卡片列表 -->
       <!-- ========================================== -->
       <div v-else class="mobile-list" v-loading="loading">
         <div v-for="item in regList" :key="item.regId" class="m-card">
@@ -382,7 +382,7 @@ onUnmounted(() => {
 .calc-tip { color: #409eff; font-weight: bold; margin-top: 5px; }
 .points-tip { font-size: 12px; color: #909399; margin-top: 5px; }
 
-/* 🚨 核心：现代橙色表格皮肤 */
+/* 橙色表格皮肤 */
 :deep(.el-table) {
   --el-table-border-color: #e2e8f0;
   --el-table-header-bg-color: #f8fafc;
@@ -401,7 +401,7 @@ onUnmounted(() => {
 }
 
 /* ====================================================
-   📱 移动端响应式适配 (小于 768px)
+   移动端响应式适配 (小于 768px)
    ==================================================== */
 @media screen and (max-width: 768px) {
   .reg-manage-container { padding: 5px; }
@@ -480,7 +480,7 @@ onUnmounted(() => {
 
 }
 
-/* 🎨 新增：精修版技能标签样式 (胶囊 Pill 型) */
+/* 技能标签样式 (胶囊 Pill 型) */
 .skill-pill-match {
   display: inline-flex;
   align-items: center;

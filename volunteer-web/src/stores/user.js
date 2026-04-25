@@ -74,7 +74,7 @@ export const useUserStore = defineStore('user', () => {
     role.value = '';
     userId.value = '';
     
-    // 🚨 修正：不再清空所有缓存，只删除认证相关的关键信息
+    // 不清空所有缓存，只删除认证相关的关键信息
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     localStorage.removeItem('userId');

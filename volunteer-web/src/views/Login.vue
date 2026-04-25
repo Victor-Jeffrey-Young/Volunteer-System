@@ -1,95 +1,3 @@
-<script setup>
-import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { useUserStore } from '../stores/user';
-import { ElMessage } from 'element-plus';
-import {
-  User as UserIcon,
-  Lock,
-  EyeOff,
-  Eye,
-  CheckCircle,
-  Smartphone,
-  Heart,
-} from 'lucide-vue-next';
-import request from '../utils/request';
-
-const router = useRouter();
-const userStore = useUserStore();
-
-// 状态控制
-const isLogin = ref(true);
-const showPassword = ref(false);
-const loading = ref(false);
-
-// 表单数据
-const form = reactive({
-  username: '',
-  password: '',
-  realName: '', // 注册用
-  phone: '',    // 注册用：手机号
-  email: '',    // 注册用：邮箱
-  gender: 1,    // 注册用：性别 (1-男, 2-女)
-  role: 'VOLUNTEER' // 默认注册为志愿者
-});
-
-const handleLogin = async () => {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请填写完整账号密码');
-    return;
-  }
-  
-  loading.value = true;
-  try {
-    // 🚨 修正：统一调用 store 的 login 方法
-    const data = await userStore.login(form.username, form.password);
-
-    ElMessage.success(`欢迎回来，${data.realName || data.username}！`);
-    
-    // 根据角色跳转
-    if (data.role === 'ADMIN') {
-      router.push('/admin/home');
-    } else if (data.role === 'VOLUNTEER') {
-      router.push('/volunteer/home');
-    } else if (data.role === 'RESIDENT') {
-      router.push('/resident/wishes');
-    }
-  } catch (error) {
-    console.error("Login Error:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handleRegister = async () => {
-  if (!form.username || !form.password || !form.realName || !form.phone) {
-    ElMessage.warning('请填写完整注册信息 (包括手机号)');
-    return;
-  }
-
-  // 手机号格式校验
-  if (!/^1[3-9]\d{9}$/.test(form.phone)) {
-    ElMessage.warning('请输入正确的手机号码');
-    return;
-  }
-
-  loading.value = true;
-  try {
-    await request.post('/api/auth/register', form);
-    ElMessage.success('注册成功，请登录');
-    isLogin.value = true;
-  } catch (error) {
-    console.error("Register Error:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const toggleMode = () => {
-  isLogin.value = !isLogin.value;
-};
-</script>
-
 <template>
   <div class="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
     <!-- Header -->
@@ -275,3 +183,95 @@ const toggleMode = () => {
     </footer>
   </div>
 </template>
+
+<script setup>
+import { ref, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '../stores/user';
+import { ElMessage } from 'element-plus';
+import {
+  User as UserIcon,
+  Lock,
+  EyeOff,
+  Eye,
+  CheckCircle,
+  Smartphone,
+  Heart,
+} from 'lucide-vue-next';
+import request from '../utils/request';
+
+const router = useRouter();
+const userStore = useUserStore();
+
+// 状态控制
+const isLogin = ref(true);
+const showPassword = ref(false);
+const loading = ref(false);
+
+// 表单数据
+const form = reactive({
+  username: '',
+  password: '',
+  realName: '', // 注册用
+  phone: '',    // 注册用：手机号
+  email: '',    // 注册用：邮箱
+  gender: 1,    // 注册用：性别 (1-男, 2-女)
+  role: 'VOLUNTEER' // 默认注册为志愿者
+});
+
+const handleLogin = async () => {
+  if (!form.username || !form.password) {
+    ElMessage.warning('请填写完整账号密码');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    // 统一调用 store 的 login 方法
+    const data = await userStore.login(form.username, form.password);
+
+    ElMessage.success(`欢迎回来，${data.realName || data.username}！`);
+
+    // 根据角色跳转
+    if (data.role === 'ADMIN') {
+      router.push('/admin/home');
+    } else if (data.role === 'VOLUNTEER') {
+      router.push('/volunteer/home');
+    } else if (data.role === 'RESIDENT') {
+      router.push('/resident/wishes');
+    }
+  } catch (error) {
+    console.error("Login Error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleRegister = async () => {
+  if (!form.username || !form.password || !form.realName || !form.phone) {
+    ElMessage.warning('请填写完整注册信息 (包括手机号)');
+    return;
+  }
+
+  // 手机号格式校验
+  if (!/^1[3-9]\d{9}$/.test(form.phone)) {
+    ElMessage.warning('请输入正确的手机号码');
+    return;
+  }
+
+  loading.value = true;
+  try {
+    await request.post('/api/auth/register', form);
+    ElMessage.success('注册成功，请登录');
+    isLogin.value = true;
+  } catch (error) {
+    console.error("Register Error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const toggleMode = () => {
+  isLogin.value = !isLogin.value;
+};
+</script>

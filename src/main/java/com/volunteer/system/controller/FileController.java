@@ -27,7 +27,7 @@ import java.util.UUID;
 @Tag(name = "07. 文件模块", description = "处理非结构化数据(图片)的上传与映射")
 public class FileController {
 
-    // 🚨 增强版路径探测
+    // 路径探测
     private static final String UPLOAD_PATH;
 
     static {
@@ -43,14 +43,14 @@ public class FileController {
     }
 
     /**
-     * 企业级增强版：支持分类存储的上传接口
+     * 支持分类存储的上传接口
      * @param type 分类标签：avatar (头像), goods (商品), activity (活动)
      */
     @PostMapping("/upload")
     @Operation(summary = "分类上传图片", description = "支持图片合法性校验，并根据业务类型自动归档存储")
     public Result<String> upload(
             @Parameter(description = "二进制图片文件", required = true) @RequestParam MultipartFile file,
-            @Parameter(description = "业务分类：avatar, goods, activity, common", example = "avatar") @RequestParam(defaultValue = "common") String type) { // 🚨 增加分类参数
+            @Parameter(description = "业务分类：avatar, goods, activity, common", example = "avatar") @RequestParam(defaultValue = "common") String type) {
 
         if (file == null || file.isEmpty()) throw new ServiceException(400, "文件为空");
 
@@ -75,7 +75,7 @@ public class FileController {
         try {
             file.transferTo(new File(finalUploadPath + fileName));
 
-            // 🚨 重要：返回给前端的 URL 必须带上子路径，如 /files/avatar/xxx.jpg
+            // 返回给前端的 URL 必须带上子路径，如 /files/avatar/xxx.jpg
             return Result.success("/files/" + subDir + fileName);
         } catch (IOException e) {
             throw new ServiceException(500, "磁盘写入失败");

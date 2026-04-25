@@ -32,7 +32,7 @@ public class SysNoticeServiceImpl extends ServiceImpl<SysNoticeMapper, SysNotice
 
     @Override
     public IPage<SysNotice> getNoticePage(IPage<SysNotice> page, Long userId, String title) {
-        // 逻辑：如果 userId 为空（比如游客访问），则所有公告的 isRead 默认为 0
+        // 如果 userId 为空，则所有公告的 isRead 默认为 0
         // 如果 title 有值，SQL 会自动进行 LIKE 模糊查询
         return baseMapper.selectNoticePageWithStatus(page, userId, title);
     }

@@ -173,7 +173,7 @@ const fetchDashboardData = async () => {
     }
     const todoRes = await request.get('/api/reg/admin/page', { params: { current: 1, size: 10, status: 0 } });
     todoList.value = todoRes.data?.records || [];
-    // 🚨 使用分页接口返回的 total 总数，后端 /dashboard/base 接口并没提供 pendingRegCount
+    // 使用分页接口返回的 total 总数，后端 /dashboard/base 接口并没提供 pendingRegCount
     statCards.value[2].value = todoRes.data?.total || 0;
     
     // 获取真实趋势数据

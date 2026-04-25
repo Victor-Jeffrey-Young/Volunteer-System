@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* 🚨 Element Plus 全局主题色覆盖 (温暖橙) */
+  /* Element Plus 全局主题色覆盖 (温暖橙) */
   --el-color-primary: #f97316 !important;
   --el-color-primary-light-3: #fb923c !important;
   --el-color-primary-light-5: #fdba74 !important;

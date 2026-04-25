@@ -35,9 +35,9 @@ public class AuthController {
      * 业务流：接收前端账号密码 -> 查库比对 -> 校验状态 -> 签发 Token 并返回全量基础信息
      */
     @PostMapping("/login")
-    @Operation(summary = "用户登录", description = "验证账号密码，登录成功后返回 Token 及个人基础信息") // 🚨 Knife4j 接口名
+    @Operation(summary = "用户登录", description = "验证账号密码，登录成功后返回 Token 及个人基础信息")
     public Result<Map<String, Object>> login(
-            @Parameter(description = "登录表单信息(需包含 username 和 password)") // 🚨 Knife4j 参数说明
+            @Parameter(description = "登录表单信息(需包含 username 和 password)")
             @RequestBody SysUser loginForm) {
 
         log.info("接收到登录请求: {}", loginForm.getUsername());

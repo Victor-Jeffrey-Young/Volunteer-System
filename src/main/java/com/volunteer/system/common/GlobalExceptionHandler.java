@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
         // 1. 后端控制台打印：包含错误码，方便排查
         log.warn("【业务异常】状态码: {}, 提示信息: {}", e.getCode(), e.getMessage());
 
-        // 2. 同步设置 HTTP 响应状态码 (让浏览器 Network 标签页显示对应错误颜色)
+        // 2. 同步设置 HTTP 响应状态码
         response.setStatus(e.getCode());
         
         // 3. 显式设置编码，防止 Safari 等浏览器乱码

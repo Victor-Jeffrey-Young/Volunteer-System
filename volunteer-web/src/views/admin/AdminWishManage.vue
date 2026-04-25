@@ -3,20 +3,21 @@
     <el-card shadow="never" class="box-card">
       <template #header>
         <div class="card-header">
-          <span style="font-size: 18px; font-weight: bold;">💖 邻里微心愿审计中台</span>
-          <el-select v-model="filterStatus" placeholder="筛选状态" clearable style="width: 150px;" @change="handleFilter">
-            <el-option label="待审核" :value="0" />
-            <el-option label="展示中" :value="1" />
-            <el-option label="办理中" :value="2" />
-            <el-option label="待确认(志)" :value="5" />
-            <el-option label="待最终结算" :value="6" />
-            <el-option label="已达成" :value="3" />
-            <el-option label="已驳回" :value="4" />
-          </el-select>
+          <span style="font-size: 18px; font-weight: bold;">💗 邻里微心愿审计中台</span>
+          <el-radio-group v-model="filterStatus" @change="handleFilter" size="small">
+            <el-radio-button :label="null">全部</el-radio-button>
+            <el-radio-button :label="0">待审核</el-radio-button>
+            <el-radio-button :label="1">待认领</el-radio-button>
+            <el-radio-button :label="2">办理中</el-radio-button>
+            <el-radio-button :label="5">待验收</el-radio-button>
+            <el-radio-button :label="6">待结算</el-radio-button>
+            <el-radio-button :label="3">已达成</el-radio-button>
+            <el-radio-button :label="4">已驳回</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
 
-      <!-- 🖥️ PC 表格视图 -->
+      <!-- PC 表格视图 -->
       <el-table :data="wishList" stripe style="width: 100%; margin-top: 10px;" v-loading="loading">
         <el-table-column label="心愿概要" min-width="220">
           <template #default="scope">
@@ -275,17 +276,17 @@ const getStatusType = (s) => ({
   2: 'info',
   3: 'success',
   4: 'danger',
-  5: 'success',
-  6: 'warning'
+  5: 'warning',
+  6: 'primary'
 })[s] || 'info';
 
 const getStatusText = (s) => ({
   0: '待审核',
-  1: '展示中',
+  1: '待认领',
   2: '办理中',
   3: '已达成',
   4: '已驳回',
-  5: '待确认',
+  5: '待验收',
   6: '待结算'
 })[s] || '未知';
 

@@ -1,121 +1,3 @@
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { mallApi } from '../../api/modules';
-import { useUserStore } from '../../stores/user';
-import { ElMessage } from 'element-plus';
-import QRCode from 'qrcode'; // 🚨 切换为更兼容的底层原生库
-import {
-  Star,
-  ShoppingBag,
-  X,
-  CheckCircle,
-  QrCode,
-} from 'lucide-vue-next';
-
-const userStore = useUserStore();
-const userPoints = computed(() => userStore.user?.currentPoints || 0);
-const showHistory = ref(false);
-const showRules = ref(false);
-const activeCategory = ref('全部');
-const sortBy = ref('默认');
-const redeemSuccessItem = ref(null);
-const currentRedeemCode = ref('');
-const qrCodeDataUrl = ref(''); // 🚨 二维码图片 Base64
-const selectedQRCode = ref(null);
-const items = ref([]);
-const exchangeRecords = ref([]);
-const loading = ref(false);
-
-const categories = ['全部', '生活用品', '纪念品', '电子产品', '文具', '虚拟卡券','玩偶/玩具','电子游戏'];
-
-// 🚨 二维码生成逻辑
-const generateQR = async (text) => {
-  if (!text) return;
-  try {
-    qrCodeDataUrl.value = await QRCode.toDataURL(text, {
-      width: 300,
-      margin: 2,
-      color: { dark: '#0f172a', light: '#ffffff' }
-    });
-  } catch (err) {
-    console.error('二维码生成失败:', err);
-  }
-};
-
-const filteredItems = computed(() => {
-  if (!items.value || !Array.isArray(items.value)) return [];
-  let result = [...items.value];
-  
-  if (activeCategory.value !== '全部') {
-    result = result.filter(item => item.category === activeCategory.value);
-  }
-
-  if (sortBy.value === '积分从低到高') {
-    result.sort((a, b) => (a.pointsRequired || 0) - (b.pointsRequired || 0));
-  } else if (sortBy.value === '积分从高到低') {
-    result.sort((a, b) => (b.pointsRequired || 0) - (a.pointsRequired || 0));
-  }
-  return result;
-});
-
-const fetchData = async () => {
-  loading.value = true;
-  try {
-    const res = await mallApi.getProducts();
-    items.value = res.data?.records || [];
-  } catch (error) {
-    console.error("Fetch mall data error:", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const fetchHistory = async () => {
-  if (!userStore.userId) return;
-  try {
-    const res = await mallApi.getExchangeRecords(userStore.userId);
-    const allRecords = res.data?.records || [];
-    exchangeRecords.value = allRecords.filter(r => String(r.userId) === String(userStore.userId));
-  } catch (error) {
-    console.error("Fetch history error:", error);
-  }
-};
-
-onMounted(fetchData);
-
-watch(showHistory, (newVal) => {
-  if (newVal) fetchHistory();
-});
-
-// 🚨 监听核销码变化并生成对应二维码
-watch(currentRedeemCode, (newVal) => {
-  if (newVal) generateQR(newVal);
-});
-
-watch(selectedQRCode, (newVal) => {
-  if (newVal) generateQR(newVal);
-});
-
-const handleRedeem = async (item) => {
-  if (userPoints.value < item.pointsRequired) {
-    return ElMessage.error('积分不足');
-  }
-
-  try {
-    const res = await mallApi.exchange(userStore.userId, item.goodsId);
-    const msg = res.data || '';
-    const match = msg.match(/\[(.*?)\]/);
-    currentRedeemCode.value = match ? match[1] : 'ERROR';
-
-    redeemSuccessItem.value = item;
-    fetchData(); 
-    userStore.fetchCurrentUser();
-  } catch (error) {
-    console.error("Redeem error:", error);
-  }
-};
-</script>
-
 <template>
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header & Points Balance -->
@@ -386,7 +268,6 @@ const handleRedeem = async (item) => {
               {{ currentRedeemCode }}
             </div>
             <div class="w-32 h-32 bg-white mx-auto rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden">
-              <!-- 🚨 替换为真实的 <img> 显示 Base64 二维码 -->
               <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" class="w-24 h-24" alt="QR Code" />
             </div>
             <p class="text-[10px] text-slate-400 mt-3">请在服务中心出示此二维码核销</p>
@@ -419,7 +300,6 @@ const handleRedeem = async (item) => {
           <p class="text-sm text-slate-500 mb-6">请在服务中心出示此二维码核销</p>
           <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6">
             <div class="w-48 h-48 bg-white mx-auto rounded-xl border border-slate-200 flex items-center justify-center mb-4 overflow-hidden">
-              <!-- 🚨 替换为真实的 <img> 显示 Base64 二维码 -->
               <img v-if="qrCodeDataUrl" :src="qrCodeDataUrl" class="w-36 h-36" alt="QR Code" />
             </div>
             <div class="text-lg font-mono font-bold text-slate-900 tracking-widest">
@@ -437,6 +317,124 @@ const handleRedeem = async (item) => {
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { mallApi } from '../../api/modules';
+import { useUserStore } from '../../stores/user';
+import { ElMessage } from 'element-plus';
+import QRCode from 'qrcode'; // 切换为更兼容的底层原生库
+import {
+  Star,
+  ShoppingBag,
+  X,
+  CheckCircle,
+  QrCode,
+} from 'lucide-vue-next';
+
+const userStore = useUserStore();
+const userPoints = computed(() => userStore.user?.currentPoints || 0);
+const showHistory = ref(false);
+const showRules = ref(false);
+const activeCategory = ref('全部');
+const sortBy = ref('默认');
+const redeemSuccessItem = ref(null);
+const currentRedeemCode = ref('');
+const qrCodeDataUrl = ref(''); // 二维码图片 Base64
+const selectedQRCode = ref(null);
+const items = ref([]);
+const exchangeRecords = ref([]);
+const loading = ref(false);
+
+const categories = ['全部', '生活用品', '纪念品', '电子产品', '文具', '虚拟卡券','玩偶/玩具','电子游戏'];
+
+// 二维码生成逻辑
+const generateQR = async (text) => {
+  if (!text) return;
+  try {
+    qrCodeDataUrl.value = await QRCode.toDataURL(text, {
+      width: 300,
+      margin: 2,
+      color: { dark: '#0f172a', light: '#ffffff' }
+    });
+  } catch (err) {
+    console.error('二维码生成失败:', err);
+  }
+};
+
+const filteredItems = computed(() => {
+  if (!items.value || !Array.isArray(items.value)) return [];
+  let result = [...items.value];
+
+  if (activeCategory.value !== '全部') {
+    result = result.filter(item => item.category === activeCategory.value);
+  }
+
+  if (sortBy.value === '积分从低到高') {
+    result.sort((a, b) => (a.pointsRequired || 0) - (b.pointsRequired || 0));
+  } else if (sortBy.value === '积分从高到低') {
+    result.sort((a, b) => (b.pointsRequired || 0) - (a.pointsRequired || 0));
+  }
+  return result;
+});
+
+const fetchData = async () => {
+  loading.value = true;
+  try {
+    const res = await mallApi.getProducts();
+    items.value = res.data?.records || [];
+  } catch (error) {
+    console.error("Fetch mall data error:", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const fetchHistory = async () => {
+  if (!userStore.userId) return;
+  try {
+    const res = await mallApi.getExchangeRecords(userStore.userId);
+    const allRecords = res.data?.records || [];
+    exchangeRecords.value = allRecords.filter(r => String(r.userId) === String(userStore.userId));
+  } catch (error) {
+    console.error("Fetch history error:", error);
+  }
+};
+
+onMounted(fetchData);
+
+watch(showHistory, (newVal) => {
+  if (newVal) fetchHistory();
+});
+
+// 监听核销码变化并生成对应二维码
+watch(currentRedeemCode, (newVal) => {
+  if (newVal) generateQR(newVal);
+});
+
+watch(selectedQRCode, (newVal) => {
+  if (newVal) generateQR(newVal);
+});
+
+const handleRedeem = async (item) => {
+  if (userPoints.value < item.pointsRequired) {
+    return ElMessage.error('积分不足');
+  }
+
+  try {
+    const res = await mallApi.exchange(userStore.userId, item.goodsId);
+    const msg = res.data || '';
+    const match = msg.match(/\[(.*?)\]/);
+    currentRedeemCode.value = match ? match[1] : 'ERROR';
+
+    redeemSuccessItem.value = item;
+    fetchData();
+    userStore.fetchCurrentUser();
+  } catch (error) {
+    console.error("Redeem error:", error);
+  }
+};
+</script>
 
 <style scoped>
 .hide-scrollbar::-webkit-scrollbar {

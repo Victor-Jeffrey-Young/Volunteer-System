@@ -54,12 +54,10 @@ public class DashboardController {
         long activeCount = activityService.count(new LambdaQueryWrapper<SysActivity>().in(SysActivity::getStatus, 0, 1));
 
         // 3. 累计总时长 (利用 Stream API 在内存中聚合，数据量极大时建议改用 SQL SUM 函数)
-        // TODO 2.0: 优化为 SELECT SUM(total_hours) FROM sys_user WHERE role='VOLUNTEER'
         List<SysUser> users = userService.list(new LambdaQueryWrapper<SysUser>().eq(SysUser::getRole, "VOLUNTEER"));
         BigDecimal totalHours = users.stream().map(SysUser::getTotalHours).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 4. 居民点赞总数 (所有志愿者的 likes 总和)
-        // TODO 2.0: 优化为 SELECT SUM(likes) FROM sys_user WHERE role='VOLUNTEER'
         int totalLikes = users.stream().mapToInt(SysUser::getLikes).sum();
 
         data.put("volCount", volCount);
@@ -126,29 +124,6 @@ public class DashboardController {
         List<Map<String, Object>> list = activityService.listMaps(query);
         return Result.success(list);
     }
-
-//    @GetMapping("/volunteer/rank")
-//    @Operation(summary = "获取荣誉殿堂双榜单", description = "type=hours 取时长年度榜，type=points 取积分活跃榜")
-//    public Result<List<Map<String, Object>>> getVolunteerRank(
-//            @Parameter(description = "排行类型：hours 或 points", required = true, example = "hours")
-//            @RequestParam String type) {
-//
-//        QueryWrapper<SysUser> query = new QueryWrapper<>();
-//        // 必须给 total_points 起别名为 points，前端才能正确解析
-//        query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points")
-//                .eq("role", "VOLUNTEER")
-//                .eq("status", 1);
-//
-//        if ("hours".equals(type)) {
-//            query.orderByDesc("total_hours");
-//        } else {
-//            query.orderByDesc("total_points");
-//        }
-//
-//        query.last("LIMIT 10");
-//        List<Map<String, Object>> list = userService.listMaps(query);
-//        return Result.success(list);
-//    }
 
     @GetMapping("/volunteer/rank")
     @Operation(summary = "获取志愿者排行榜", description = "返回时长或积分前10名的志愿者及趋势数据")

@@ -306,8 +306,8 @@ public class WishController {
         wish.setRewardHours(wishData.getRewardHours());
         wish.setFinishTime(LocalDateTime.now());
         wishService.updateById(wish);
-        
-        // 🚨 逻辑注入：对应增加志愿者的积分和工时
+
+        // 对应增加志愿者的积分和工时
         if (wish.getVolunteerId() != null) {
             SysUser user = userService.getById(wish.getVolunteerId());
             if (user != null) {

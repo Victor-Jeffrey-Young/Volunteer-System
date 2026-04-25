@@ -117,7 +117,7 @@ public class NoticeController {
     public Result<String> markAsRead(
             @Parameter(description = "公告ID", required = true) @PathVariable Long id,
             @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
-        // 逻辑：向 sys_notice_read 插入一条记录（如果已存在则忽略）
+        // 向 sys_notice_read 插入一条记录（如果已存在则忽略）
         noticeService.markAsRead(userId, id);
         return Result.success("已读");
     }
@@ -129,7 +129,7 @@ public class NoticeController {
     @Operation(summary = "全部标记为已读", description = "用于一键清理所有未读通知红点")
     public Result<String> markAllAsRead(
             @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
-        // 逻辑：将所有未读公告 ID 批量插入 sys_notice_read
+        // 将所有未读公告 ID 批量插入 sys_notice_read
         noticeService.markAllAsRead(userId);
         return Result.success("全部已读");
     }

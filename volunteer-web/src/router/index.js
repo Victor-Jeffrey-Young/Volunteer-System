@@ -24,7 +24,7 @@ const routes = [
         path: '/admin',
         component: () => import('../layout/MainLayout.vue'),
         redirect: '/admin/home',
-        meta: { requiresRole: 'ADMIN' }, // 🚨 标注必须是管理员
+        meta: { requiresRole: 'ADMIN' },
         children: [
             { path: 'home', name: 'Home', component: () => import('../views/admin/AdminDashboard.vue') },
             { path: 'users', name: 'UserManage', component: () => import('../views/admin/AdminUserManage.vue') },
@@ -39,11 +39,11 @@ const routes = [
         ]
     },
     {
-        // 志愿者前端路由分组
+        // 志愿者路由分组
         path: '/volunteer',
         component: () => import('../layout/VolunteerLayout.vue'),
         redirect: '/volunteer/home',
-        meta: { requiresRole: 'VOLUNTEER' }, // 🚨 标注必须是志愿者
+        meta: { requiresRole: 'VOLUNTEER' },
         children: [
             { path: 'home', name: 'VolunteerHome', component: () => import('../views/volunteer/VolunteerHome.vue') },
             { path: 'activities', name: 'VolunteerActivities', component: () => import('../views/volunteer/VolunteerActivityList.vue') },
@@ -73,7 +73,7 @@ const router = createRouter({
     routes
 });
 
-// 🛡️ 企业级全局前置路由守卫
+// 全局前置路由守卫
 router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');

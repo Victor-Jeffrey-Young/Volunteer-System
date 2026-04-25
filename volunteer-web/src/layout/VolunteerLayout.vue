@@ -3,11 +3,10 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useUserStore } from '../stores/user';
 import { getFullAvatar } from '../utils/file';
-import { announcementApi } from '../api/modules'; // 🚨 顶部引入 API
+import { announcementApi } from '../api/modules';
 import { ElMessage } from 'element-plus';
 import {
   Heart,
-  Search,
   Bell,
   Menu,
   X,
@@ -29,11 +28,11 @@ const notifications = ref([]);
 const userAvatar = computed(() => getFullAvatar(userStore.user?.avatar || localStorage.getItem('avatar')));
 const userName = computed(() => userStore.user?.realName || localStorage.getItem('realName') || '志愿者');
 
-// 🚨 企业级：从后端拉取真实的通知数据
+// 从后端拉取真实的通知数据
 const fetchLiveNotifications = async () => {
   try {
     const res = await announcementApi.getAnnouncements(1, 5);
-    // 🚨 增强版逻辑：除非后端明确返回 isRead 为 true 或 1，否则一律视为未读
+    // 除非后端明确返回 isRead 为 true 或 1，否则一律视为未读
     notifications.value = (res.data?.records || []).map(n => {
       // 这里的判定逻辑要非常宽松：
       // 如果 isRead 是 1、true，说明已读；
@@ -102,7 +101,7 @@ const isActive = (path) => {
 
 const hasUnread = computed(() => notifications.value.some(n => n.unread));
 
-// 🚨 帮助中心弹窗控制
+// 帮助中心弹窗控制
 const isHelpOpen = ref(false);
 const helpTab = ref('guide'); 
 
@@ -111,7 +110,7 @@ const openHelp = (tab = 'guide') => {
   isHelpOpen.value = true;
 };
 
-// 🚨 关于我们弹窗控制
+// 关于我们弹窗控制
 const isAboutOpen = ref(false);
 const aboutTab = ref('mission'); // 'mission', 'policy', 'join'
 
@@ -133,7 +132,6 @@ const openAbout = (tab = 'mission') => {
           </RouterLink>
         </div>
 
-        <!-- Desktop Navigation -->
         <nav class="hidden lg:flex items-center gap-8">
           <RouterLink
             v-for="link in navLinks"
@@ -209,7 +207,6 @@ const openAbout = (tab = 'mission') => {
         </div>
       </div>
 
-      <!-- Mobile Navigation Menu -->
       <div
         v-if="isMobileMenuOpen"
         class="lg:hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-lg py-4 px-4 flex flex-col gap-2"
@@ -232,7 +229,6 @@ const openAbout = (tab = 'mission') => {
       <RouterView />
     </main>
 
-    <!-- Footer -->
     <footer class="mt-12 border-t border-slate-200 bg-white px-4 py-12">
       <div class="mx-auto max-w-7xl">
         <div class="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
@@ -296,12 +292,13 @@ const openAbout = (tab = 'mission') => {
 
         <div class="mt-12 border-t border-slate-100 pt-8">
           <p class="text-center text-xs text-slate-400">
-            © 2024 社区志愿服务平台 版权所有。京 ICP 备 00000000 号
+            © 2026 社区志愿服务平台 版权所有。京 ICP 备 00000000 号
           </p>
         </div>
       </div>
     </footer>
-    <!-- 📘 帮助中心弹窗 -->
+
+    <!-- 帮助中心弹窗 -->
     <div v-if="isHelpOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div class="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[85vh]">
         <!-- Header -->
@@ -347,7 +344,6 @@ const openAbout = (tab = 'mission') => {
             </button>
           </div>
 
-          <!-- Content Area -->
           <div class="flex-1 overflow-y-auto p-6 sm:p-8">
             <!-- 1. 参与指南 -->
             <div v-if="helpTab === 'guide'" class="space-y-6">
@@ -439,7 +435,7 @@ const openAbout = (tab = 'mission') => {
       </div>
     </div>
 
-    <!-- 🏢 关于我们弹窗 -->
+    <!-- 关于我们弹窗 -->
     <div v-if="isAboutOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
       <div class="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300 flex flex-col max-h-[85vh]">
         <!-- Header -->

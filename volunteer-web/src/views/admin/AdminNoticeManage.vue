@@ -1,96 +1,3 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import { 
-  Plus, 
-  Search, 
-  RefreshCcw, 
-  FileText, 
-  User, 
-  Calendar, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2,
-  AlertCircle,
-  Megaphone,
-  X
-} from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import request from '../../utils/request';
-
-const loading = ref(false);
-const noticeList = ref([]);
-const total = ref(0);
-const currentPage = ref(1);
-const pageSize = ref(10);
-const searchTitle = ref('');
-
-const dialogVisible = ref(false);
-const submitting = ref(false);
-const form = ref({ noticeId: null, title: '', type: 1, content: '', publisherId: null });
-
-const formatTime = (str) => str ? str.replace('T', ' ').substring(0, 16) : '--';
-
-const fetchNotices = async (page = 1) => {
-  if (typeof page === 'number') currentPage.value = page;
-  loading.value = true;
-  try {
-    const res = await request.get('/api/notice/page', {
-      params: {
-        current: currentPage.value,
-        size: pageSize.value,
-        title: searchTitle.value
-      }
-    });
-    noticeList.value = res.data?.records || [];
-    total.value = res.data?.total || 0;
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const openAdd = () => {
-  form.value = { noticeId: null, title: '', type: 1, content: '', publisherId: localStorage.getItem('userId') };
-  dialogVisible.value = true;
-};
-
-const openEdit = (row) => {
-  form.value = { ...row };
-  dialogVisible.value = true;
-};
-
-const submitForm = async () => {
-  if (!form.value.title || !form.value.content) return ElMessage.warning('请填写完整信息');
-  submitting.value = true;
-  try {
-    if (form.value.noticeId) {
-      await request.put('/api/notice/update', form.value);
-    } else {
-      await request.post('/api/notice/add', form.value);
-    }
-    ElMessage.success('发布成功');
-    dialogVisible.value = false;
-    fetchNotices();
-  } catch (e) {
-  } finally {
-    submitting.value = false;
-  }
-};
-
-const handleDelete = (id) => {
-  ElMessageBox.confirm('确定要删除这条公告吗？', '删除确认', { type: 'warning' }).then(async () => {
-    try {
-      await request.delete(`/api/notice/${id}`);
-      ElMessage.success('已删除');
-      fetchNotices();
-    } catch (e) {}
-  });
-};
-
-onMounted(() => fetchNotices(1));
-</script>
-
 <template>
   <div class="space-y-6">
     <!-- Header -->
@@ -263,6 +170,99 @@ onMounted(() => fetchNotices(1));
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import {
+  Plus,
+  Search,
+  RefreshCcw,
+  FileText,
+  User,
+  Calendar,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  AlertCircle,
+  Megaphone,
+  X
+} from 'lucide-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import request from '../../utils/request';
+
+const loading = ref(false);
+const noticeList = ref([]);
+const total = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(10);
+const searchTitle = ref('');
+
+const dialogVisible = ref(false);
+const submitting = ref(false);
+const form = ref({ noticeId: null, title: '', type: 1, content: '', publisherId: null });
+
+const formatTime = (str) => str ? str.replace('T', ' ').substring(0, 16) : '--';
+
+const fetchNotices = async (page = 1) => {
+  if (typeof page === 'number') currentPage.value = page;
+  loading.value = true;
+  try {
+    const res = await request.get('/api/notice/page', {
+      params: {
+        current: currentPage.value,
+        size: pageSize.value,
+        title: searchTitle.value
+      }
+    });
+    noticeList.value = res.data?.records || [];
+    total.value = res.data?.total || 0;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const openAdd = () => {
+  form.value = { noticeId: null, title: '', type: 1, content: '', publisherId: localStorage.getItem('userId') };
+  dialogVisible.value = true;
+};
+
+const openEdit = (row) => {
+  form.value = { ...row };
+  dialogVisible.value = true;
+};
+
+const submitForm = async () => {
+  if (!form.value.title || !form.value.content) return ElMessage.warning('请填写完整信息');
+  submitting.value = true;
+  try {
+    if (form.value.noticeId) {
+      await request.put('/api/notice/update', form.value);
+    } else {
+      await request.post('/api/notice/add', form.value);
+    }
+    ElMessage.success('发布成功');
+    dialogVisible.value = false;
+    fetchNotices();
+  } catch (e) {
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const handleDelete = (id) => {
+  ElMessageBox.confirm('确定要删除这条公告吗？', '删除确认', { type: 'warning' }).then(async () => {
+    try {
+      await request.delete(`/api/notice/${id}`);
+      ElMessage.success('已删除');
+      fetchNotices();
+    } catch (e) {}
+  });
+};
+
+onMounted(() => fetchNotices(1));
+</script>
 
 <style scoped>
 :deep(.el-table) {

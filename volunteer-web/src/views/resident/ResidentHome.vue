@@ -1,72 +1,3 @@
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useUserStore } from '../../stores/user';
-import { announcementApi, wishApi } from '../../api/modules';
-import { 
-  Heart, 
-  Send, 
-  History, 
-  Bell, 
-  ArrowRight,
-  Sparkles,
-  ShieldCheck,
-  Gift
-} from 'lucide-vue-next';
-import { getFullAvatar } from '../../utils/file';
-
-const router = useRouter();
-const userStore = useUserStore();
-const announcements = ref([]);
-const wishFeeds = ref([]);
-const stats = ref({
-  totalWishes: 0,
-  completedWishes: 0,
-  pendingWishes: 0
-});
-
-const fetchHomeData = async () => {
-    if (!userStore.userId) return;
-    try {
-        // 1. 获取公告
-        const noticeRes = await announcementApi.getAnnouncements(1, 4);
-        announcements.value = noticeRes.data?.records || [];
-
-        // 2. 获取我的心愿统计
-        const wishRes = await wishApi.getMyWishes(userStore.userId, 'RESIDENT');
-        const wishes = wishRes.data || [];
-        stats.value.totalWishes = wishes.length;
-        stats.value.completedWishes = wishes.filter(w => w.status === 3).length;
-        stats.value.pendingWishes = wishes.filter(w => w.status === 1 || w.status === 2).length;
-
-        // 3. 获取全平台动态流
-        const feedRes = await wishApi.getPublicFeeds();
-        wishFeeds.value = feedRes.data || [];
-    } catch (err) {
-        console.error('Fetch home data error:', err);
-    }
-};
-
-onMounted(fetchHomeData);
-
-const showHelpDialog = ref(false);
-
-const quickLinks = [
-  { title: '发布心愿', desc: '生活琐事求助，志愿者来帮您', icon: Send, path: '/resident/wishes?action=create', color: 'bg-orange-50 text-orange-600' },
-  { title: '进度追踪', desc: '实时查看心愿办理进度', icon: History, path: '/resident/wishes', color: 'bg-orange-50 text-orange-600' },
-  { title: '查看帮助', desc: '了解如何提交有效请求', icon: ShieldCheck, path: null, color: 'bg-orange-50 text-orange-600', action: () => showHelpDialog.value = true },
-];
-
-const handleLinkClick = (link) => {
-    if (link.action) {
-        link.action();
-    } else if (link.path) {
-        router.push(link.path);
-    }
-};
-
-</script>
-
 <template>
   <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
     <!-- Welcome Section -->
@@ -92,7 +23,7 @@ const handleLinkClick = (link) => {
       </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- 快捷操作 -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div 
         v-for="link in quickLinks" 
@@ -280,3 +211,72 @@ const handleLinkClick = (link) => {
     </el-dialog>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useUserStore } from '../../stores/user';
+import { announcementApi, wishApi } from '../../api/modules';
+import {
+  Heart,
+  Send,
+  History,
+  Bell,
+  ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  Gift
+} from 'lucide-vue-next';
+import { getFullAvatar } from '../../utils/file';
+
+const router = useRouter();
+const userStore = useUserStore();
+const announcements = ref([]);
+const wishFeeds = ref([]);
+const stats = ref({
+  totalWishes: 0,
+  completedWishes: 0,
+  pendingWishes: 0
+});
+
+const fetchHomeData = async () => {
+  if (!userStore.userId) return;
+  try {
+    // 1. 获取公告
+    const noticeRes = await announcementApi.getAnnouncements(1, 4);
+    announcements.value = noticeRes.data?.records || [];
+
+    // 2. 获取我的心愿统计
+    const wishRes = await wishApi.getMyWishes(userStore.userId, 'RESIDENT');
+    const wishes = wishRes.data || [];
+    stats.value.totalWishes = wishes.length;
+    stats.value.completedWishes = wishes.filter(w => w.status === 3).length;
+    stats.value.pendingWishes = wishes.filter(w => w.status === 1 || w.status === 2).length;
+
+    // 3. 获取全平台动态流
+    const feedRes = await wishApi.getPublicFeeds();
+    wishFeeds.value = feedRes.data || [];
+  } catch (err) {
+    console.error('Fetch home data error:', err);
+  }
+};
+
+onMounted(fetchHomeData);
+
+const showHelpDialog = ref(false);
+
+const quickLinks = [
+  { title: '发布心愿', desc: '生活琐事求助，志愿者来帮您', icon: Send, path: '/resident/wishes?action=create', color: 'bg-orange-50 text-orange-600' },
+  { title: '进度追踪', desc: '实时查看心愿办理进度', icon: History, path: '/resident/wishes', color: 'bg-orange-50 text-orange-600' },
+  { title: '查看帮助', desc: '了解如何提交有效请求', icon: ShieldCheck, path: null, color: 'bg-orange-50 text-orange-600', action: () => showHelpDialog.value = true },
+];
+
+const handleLinkClick = (link) => {
+  if (link.action) {
+    link.action();
+  } else if (link.path) {
+    router.push(link.path);
+  }
+};
+
+</script>

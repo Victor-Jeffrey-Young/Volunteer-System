@@ -1,224 +1,3 @@
-<script setup>
-/**
- * 活动大厅与管理模块 (ActivityManage.vue)
- * 职责：实现志愿活动的发布、编辑、名单审计，以及供志愿者的在线报名服务。
- */
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import request from '../../utils/request';
-import { activityApi } from '../../api/modules';
-import { Location, Clock, User, Check, Close, Warning, Search } from '@element-plus/icons-vue';
-import QRCode from 'qrcode';
-
-// --- 全局响应式状态 ---
-const isMobile = ref(window.innerWidth <= 768);
-const loading = ref(false); 
-const showAddForm = ref(false);
-const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
-
-const userRole = localStorage.getItem('role');
-const activityList = ref([]);
-const total = ref(0); 
-
-// 🚨 技能库定义
-const skillOptions = ['医疗急救', '心理疏导', '家电维修', '文艺演出', '法律咨询', '计算机IT', '外语翻译', '手工制作'];
-
-const queryParams = ref({
-  page: 1,
-  pageSize: 6,
-  title: '',
-  status: null
-});
-
-// --- 发布新活动相关 ---
-const newActivity = ref({ 
-  title: '', type: '', location: '', rewardHours: 2.0, capacity: 10, 
-  content: '', startTime: '', endTime: '', requiredSkills: [] 
-});
-const activityTimeRange = ref([]);
-
-// --- 修改活动相关 ---
-const editVisible = ref(false);
-const editForm = ref({ requiredSkills: [] });
-const editTimeRange = ref([]);
-
-// --- 业务交互控制 ---
-const detailVisible = ref(false);
-const currentActivity = ref(null);
-const appliedSet = ref(new Set()); 
-
-// 状态筛选：前端联动过滤
-const filteredActivityList = computed(() => {
-  if (queryParams.value.status === null || queryParams.value.status === undefined || queryParams.value.status === '') {
-    return activityList.value;
-  }
-  return activityList.value.filter(act => act.status === queryParams.value.status);
-});
-
-// 1. 获取活动列表
-const fetchActivities = async () => {
-  loading.value = true;
-  try {
-    const res = await activityApi.getActivities(queryParams.value);
-    activityList.value = res.data?.records || [];
-    total.value = res.data?.total || 0;
-
-    if (userRole === 'VOLUNTEER') {
-      const userId = localStorage.getItem('userId');
-      const myRes = await request.get(`/api/reg/my?userId=${userId}`);
-      if (myRes.data && Array.isArray(myRes.data)) {
-        const activeIds = myRes.data
-            .filter(reg => [0, 1, 3, 5, 6].includes(reg.status))
-            .map(reg => reg.activityId);
-        appliedSet.value = new Set(activeIds);
-      }
-    }
-  } catch (error) { 
-    console.error("加载活动大厅失败", error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handleSearch = () => {
-  queryParams.value.page = 1;
-  fetchActivities();
-};
-
-const handlePageChange = (page) => {
-  queryParams.value.page = page;
-  fetchActivities();
-};
-
-const handleApply = async (activityId) => {
-  const userId = localStorage.getItem('userId');
-  if (!userId) return ElMessage.error('登录状态失效，请重新登录');
-  try {
-    const res = await request.post(`/api/reg/apply?userId=${userId}&activityId=${activityId}`);
-    ElMessage.success(res.msg || '报名申请已提交');
-    fetchActivities();
-  } catch (e) {}
-};
-
-const handleAdd = async () => {
-  if (!newActivity.value.title || !newActivity.value.startTime) {
-    return ElMessage.error('请填写活动标题与起止时间！');
-  }
-  try {
-    const submitData = JSON.parse(JSON.stringify(newActivity.value));
-    const skillsJson = JSON.stringify(submitData.requiredSkills || []);
-    // 🚨 兼容性修复：同时发送驼峰和下划线字段，确保数据库一定能存入
-    submitData.requiredSkills = skillsJson;
-    submitData.required_skills = skillsJson;
-    
-    await request.post('/api/activity/add', submitData);
-    ElMessage.success('活动发布成功！');
-    resetForm();
-    fetchActivities();
-  } catch (e) {}
-};
-
-const submitEdit = async () => {
-  if (!editForm.value.title || !editForm.value.startTime) return ElMessage.warning('信息不完整');
-  try {
-    const submitData = JSON.parse(JSON.stringify(editForm.value));
-    const skillsJson = JSON.stringify(submitData.requiredSkills || []);
-    // 🚨 兼容性修复
-    submitData.requiredSkills = skillsJson;
-    submitData.required_skills = skillsJson;
-
-    const res = await request.put('/api/activity/update', submitData);
-    if (res.code === 200) {
-      ElMessage.success('活动信息已更新');
-      editVisible.value = false;
-      fetchActivities();
-    }
-  } catch (error) {}
-};
-
-const handleDelete = (id) => {
-  ElMessageBox.confirm('删除活动将导致关联报名记录断裂，是否继续？', '风险操作提示', { type: 'error' }).then(async () => {
-    await request.delete(`/api/activity/${id}`);
-    ElMessage.success('活动已删除');
-    fetchActivities();
-  }).catch(() => {});
-};
-
-const handleTimeChange = (val) => {
-  if (val) { newActivity.value.startTime = val[0]; newActivity.value.endTime = val[1]; }
-};
-const handleEditTimeChange = (val) => {
-  if (val) { editForm.value.startTime = val[0]; editForm.value.endTime = val[1]; }
-};
-const resetForm = () => {
-  newActivity.value = { title: '', type: '', location: '', rewardHours: 2.0, capacity: 10, content: '', startTime: '', endTime: '', requiredSkills: [] };
-  activityTimeRange.value =[];
-};
-
-const openDetail = (item) => { currentActivity.value = item; detailVisible.value = true; };
-const handleApplyAndClose = async (activityId) => { await handleApply(activityId); detailVisible.value = false; };
-
-const openEdit = (item) => {
-  const data = JSON.parse(JSON.stringify(item));
-  try {
-    data.requiredSkills = JSON.parse(data.requiredSkills || '[]');
-  } catch (e) {
-    data.requiredSkills = [];
-  }
-  editForm.value = data;
-  editTimeRange.value = (item.startTime && item.endTime) ? [item.startTime, item.endTime] :[];
-  editVisible.value = true;
-};
-
-const applicantVisible = ref(false);
-const applicantList = ref([]);
-const selectedActivityTitle = ref('');
-const currentActivityId = ref(null);
-
-const viewApplicants = async (activity) => {
-  currentActivityId.value = activity.activityId;
-  selectedActivityTitle.value = activity.title;
-  const res = await request.get(`/api/reg/admin/activity/${activity.activityId}`);
-  applicantList.value = res.data;
-  applicantVisible.value = true;
-};
-
-const handleAuditInList = async (row, status) => {
-  try {
-    await request.put(`/api/reg/admin/audit?regId=${row.regId}&status=${status}`);
-    ElMessage.success('审核操作成功');
-    viewApplicants({ activityId: currentActivityId.value, title: selectedActivityTitle.value });
-    fetchActivities();
-  } catch (e) {}
-};
-
-const qrVisible = ref(false);
-const qrCodeUrl = ref('');
-const currentActivityTitle = ref('');
-
-const openQrCode = async (item) => {
-  currentActivityTitle.value = item.title;
-  try {
-    qrCodeUrl.value = await QRCode.toDataURL(item.activityId.toString(), {
-      width: 300, margin: 2, color: { dark: '#333333', light: '#ffffff' }
-    });
-    qrVisible.value = true;
-  } catch (err) { ElMessage.error('生成打卡二维码失败'); }
-};
-
-const getActivityStatusTag = (s) => ({ 0: 'success', 1: 'warning', 2: 'info', 3: 'danger' }[s] || 'info');
-const getActivityStatusText = (s) => ({ 0: '招募中', 1: '进行中', 2: '已结束', 3: '已取消' }[s] || '未知');
-const getRegStatusType = (s) => ({ 0: 'warning', 1: 'primary', 2: 'danger', 3: 'success', 4: 'info', 5: 'warning', 6: 'success' }[s] || 'info');
-const getRegStatusText = (s) => ({ 0: '待审', 1: '通过', 2: '拒绝', 3: '完结', 4: '取消', 5: '签到', 6: '签退' }[s] || '未知');
-
-const safeParseSkills = (jsonStr) => {
-  try { return JSON.parse(jsonStr || '[]'); } catch (e) { return []; }
-};
-
-onMounted(() => { fetchActivities(); window.addEventListener('resize', handleResize); });
-onUnmounted(() => { window.removeEventListener('resize', handleResize); });
-</script>
-
 <template>
   <div class="activity-page">
     <el-card class="box-card" v-if="userRole === 'ADMIN'">
@@ -270,12 +49,12 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize); });
           </el-col>
           <el-col :xs="12" :sm="6">
             <el-form-item label="奖励时长">
-              <el-input-number v-model="newActivity.rewardHours" :precision="1" :step="0.5" :min="0" style="width: 100%" :controls="false" />
+              <el-input-number v-model="newActivity.rewardHours" :precision="1" :step="0.5" :min="0.5" style="width: 100%" :controls="true" />
             </el-form-item>
           </el-col>
           <el-col :xs="12" :sm="6">
             <el-form-item label="招募人数">
-              <el-input-number v-model="newActivity.capacity" :min="1" :max="500" style="width: 100%" :controls="false" />
+              <el-input-number v-model="newActivity.capacity" :min="1" :max="500" style="width: 100%" :controls="true" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -292,7 +71,7 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize); });
                   value-format="YYYY-MM-DD HH:mm:ss"
                   @change="handleTimeChange"
                   style="width: 100%"
-                  :teleported="false"
+                  :disabled-date="disabledDate"
               />
             </el-form-item>
           </el-col>
@@ -446,6 +225,250 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize); });
     </el-dialog>
   </div>
 </template>
+
+<script setup>
+/**
+ * 活动大厅与管理模块 (ActivityManage.vue)
+ * 职责：实现志愿活动的发布、编辑、名单审计，以及供志愿者的在线报名服务。
+ */
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import request from '../../utils/request';
+import { activityApi } from '../../api/modules';
+import { Location, Clock, User, Check, Close, Warning, Search } from '@element-plus/icons-vue';
+import QRCode from 'qrcode';
+
+// 全局响应式状态
+const isMobile = ref(window.innerWidth <= 768);
+const loading = ref(false);
+const showAddForm = ref(false);
+const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
+const userRole = localStorage.getItem('role');
+const activityList = ref([]);
+const total = ref(0);
+
+// 技能库定义
+const skillOptions = ['医疗急救', '心理疏导', '家电维修', '文艺演出', '法律咨询', '计算机IT', '外语翻译', '手工制作'];
+const queryParams = ref({
+  page: 1,
+  pageSize: 6,
+  title: '',
+  status: null
+});
+
+// 发布新活动相关
+const newActivity = ref({
+  title: '', type: '', location: '', rewardHours: 2.0, capacity: 10,
+  content: '', startTime: '', endTime: '', requiredSkills: []
+});
+const activityTimeRange = ref([]);
+
+// 修改活动相关
+const editVisible = ref(false);
+const editForm = ref({ requiredSkills: [] });
+const editTimeRange = ref([]);
+
+// 业务交互控制
+const detailVisible = ref(false);
+const currentActivity = ref(null);
+const appliedSet = ref(new Set());
+
+// 状态筛选：前端联动过滤
+const filteredActivityList = computed(() => {
+  if (queryParams.value.status === null || queryParams.value.status === undefined || queryParams.value.status === '') {
+    return activityList.value;
+  }
+  return activityList.value.filter(act => act.status === queryParams.value.status);
+});
+
+// 1. 获取活动列表
+const fetchActivities = async () => {
+  loading.value = true;
+  try {
+    const res = await activityApi.getActivities(queryParams.value);
+    activityList.value = res.data?.records || [];
+    total.value = res.data?.total || 0;
+
+    if (userRole === 'VOLUNTEER') {
+      const userId = localStorage.getItem('userId');
+      const myRes = await request.get(`/api/reg/my?userId=${userId}`);
+      if (myRes.data && Array.isArray(myRes.data)) {
+        const activeIds = myRes.data
+            .filter(reg => [0, 1, 3, 5, 6].includes(reg.status))
+            .map(reg => reg.activityId);
+        appliedSet.value = new Set(activeIds);
+      }
+    }
+  } catch (error) {
+    console.error("加载活动大厅失败", error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleSearch = () => {
+  queryParams.value.page = 1;
+  fetchActivities();
+};
+
+const handlePageChange = (page) => {
+  queryParams.value.page = page;
+  fetchActivities();
+};
+
+const handleApply = async (activityId) => {
+  const userId = localStorage.getItem('userId');
+  if (!userId) return ElMessage.error('登录状态失效，请重新登录');
+  try {
+    const res = await request.post(`/api/reg/apply?userId=${userId}&activityId=${activityId}`);
+    ElMessage.success(res.msg || '报名申请已提交');
+    fetchActivities();
+  } catch (e) {}
+};
+
+// 限制不能选择过去的时间
+const disabledDate = (time) => {
+  return time.getTime() < Date.now() - 8.64e7; // 8.64e7 毫秒是一天，允许选择今天
+};
+
+const handleAdd = async () => {
+  if (!newActivity.value.title || !newActivity.value.startTime) {
+    return ElMessage.error('请填写活动标题与起止时间！');
+  }
+
+  // 校验：奖励时长和招募人数
+  if (newActivity.value.rewardHours <= 0) {
+    return ElMessage.error('奖励时长必须大于0！');
+  }
+  if (newActivity.value.capacity <= 0) {
+    return ElMessage.error('招募人数必须大于0！');
+  }
+
+  // 校验：禁止发布过去的时间
+  const now = new Date();
+  const selectedStart = new Date(newActivity.value.startTime);
+  if (selectedStart < now) {
+    return ElMessage.error('活动开始时间不能早于当前时间！');
+  }
+
+  try {
+    const submitData = JSON.parse(JSON.stringify(newActivity.value));
+    const skillsJson = JSON.stringify(submitData.requiredSkills || []);
+    // 兼容性修复：同时发送驼峰和下划线字段，确保数据库一定能存入
+    submitData.requiredSkills = skillsJson;
+    submitData.required_skills = skillsJson;
+
+    await request.post('/api/activity/add', submitData);
+    ElMessage.success('活动发布成功！');
+    resetForm();
+    fetchActivities();
+  } catch (e) {}
+};
+
+const submitEdit = async () => {
+  if (!editForm.value.title || !editForm.value.startTime) return ElMessage.warning('信息不完整');
+
+  if (editForm.value.rewardHours <= 0) return ElMessage.error('奖励时长必须大于0');
+  if (editForm.value.capacity <= 0) return ElMessage.error('招募人数必须大于0');
+
+  try {
+    const submitData = JSON.parse(JSON.stringify(editForm.value));
+    const skillsJson = JSON.stringify(submitData.requiredSkills || []);
+
+    submitData.requiredSkills = skillsJson;
+    submitData.required_skills = skillsJson;
+
+    const res = await request.put('/api/activity/update', submitData);
+    if (res.code === 200) {
+      ElMessage.success('活动信息已更新');
+      editVisible.value = false;
+      fetchActivities();
+    }
+  } catch (error) {}
+};
+
+const handleDelete = (id) => {
+  ElMessageBox.confirm('删除活动将导致关联报名记录断裂，是否继续？', '风险操作提示', { type: 'error' }).then(async () => {
+    await request.delete(`/api/activity/${id}`);
+    ElMessage.success('活动已删除');
+    fetchActivities();
+  }).catch(() => {});
+};
+
+const handleTimeChange = (val) => {
+  if (val) { newActivity.value.startTime = val[0]; newActivity.value.endTime = val[1]; }
+};
+const handleEditTimeChange = (val) => {
+  if (val) { editForm.value.startTime = val[0]; editForm.value.endTime = val[1]; }
+};
+const resetForm = () => {
+  newActivity.value = { title: '', type: '', location: '', rewardHours: 2.0, capacity: 10, content: '', startTime: '', endTime: '', requiredSkills: [] };
+  activityTimeRange.value =[];
+};
+
+const openDetail = (item) => { currentActivity.value = item; detailVisible.value = true; };
+const handleApplyAndClose = async (activityId) => { await handleApply(activityId); detailVisible.value = false; };
+
+const openEdit = (item) => {
+  const data = JSON.parse(JSON.stringify(item));
+  try {
+    data.requiredSkills = JSON.parse(data.requiredSkills || '[]');
+  } catch (e) {
+    data.requiredSkills = [];
+  }
+  editForm.value = data;
+  editTimeRange.value = (item.startTime && item.endTime) ? [item.startTime, item.endTime] :[];
+  editVisible.value = true;
+};
+
+const applicantVisible = ref(false);
+const applicantList = ref([]);
+const selectedActivityTitle = ref('');
+const currentActivityId = ref(null);
+
+const viewApplicants = async (activity) => {
+  currentActivityId.value = activity.activityId;
+  selectedActivityTitle.value = activity.title;
+  const res = await request.get(`/api/reg/admin/activity/${activity.activityId}`);
+  applicantList.value = res.data;
+  applicantVisible.value = true;
+};
+
+const handleAuditInList = async (row, status) => {
+  try {
+    await request.put(`/api/reg/admin/audit?regId=${row.regId}&status=${status}`);
+    ElMessage.success('审核操作成功');
+    viewApplicants({ activityId: currentActivityId.value, title: selectedActivityTitle.value });
+    fetchActivities();
+  } catch (e) {}
+};
+
+const qrVisible = ref(false);
+const qrCodeUrl = ref('');
+const currentActivityTitle = ref('');
+
+const openQrCode = async (item) => {
+  currentActivityTitle.value = item.title;
+  try {
+    qrCodeUrl.value = await QRCode.toDataURL(item.activityId.toString(), {
+      width: 300, margin: 2, color: { dark: '#333333', light: '#ffffff' }
+    });
+    qrVisible.value = true;
+  } catch (err) { ElMessage.error('生成打卡二维码失败'); }
+};
+
+const getActivityStatusTag = (s) => ({ 0: 'success', 1: 'warning', 2: 'info', 3: 'danger' }[s] || 'info');
+const getActivityStatusText = (s) => ({ 0: '招募中', 1: '进行中', 2: '已结束', 3: '已取消' }[s] || '未知');
+const getRegStatusType = (s) => ({ 0: 'warning', 1: 'primary', 2: 'danger', 3: 'success', 4: 'info', 5: 'warning', 6: 'success' }[s] || 'info');
+const getRegStatusText = (s) => ({ 0: '待审', 1: '通过', 2: '拒绝', 3: '完结', 4: '取消', 5: '签到', 6: '签退' }[s] || '未知');
+
+const safeParseSkills = (jsonStr) => {
+  try { return JSON.parse(jsonStr || '[]'); } catch (e) { return []; }
+};
+
+onMounted(() => { fetchActivities(); window.addEventListener('resize', handleResize); });
+onUnmounted(() => { window.removeEventListener('resize', handleResize); });
+</script>
 
 <style scoped>
 .activity-page { padding: 20px; }

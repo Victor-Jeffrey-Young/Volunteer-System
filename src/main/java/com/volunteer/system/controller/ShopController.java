@@ -46,15 +46,12 @@ public class ShopController {
             @Parameter(description = "被兑换的商品ID", required = true) @RequestParam Long goodsId) {
 
         log.info("接收到兑换请求 - 用户ID: {}, 商品ID: {}", userId, goodsId);
-
-        // 业务下沉到 Service 层，自动处理事务和异常
         String code = recordService.exchange(userId, goodsId);
-
         return Result.success("兑换成功！请凭兑换码 [" + code + "] 到服务中心领取。");
     }
 
     // ==========================================
-    // ⚙️ 管理员端：商品维护与流水审计接口
+    // 管理员端：商品维护与流水审计接口
     // ==========================================
 
     @GetMapping("/admin/page")
@@ -83,6 +80,13 @@ public class ShopController {
             @Parameter(hidden = true) @RequestHeader("Role") String role) {
         if (!"ADMIN".equals(role)) throw new ServiceException(403, "权限不足");
 
+        if (goods.getStock() == null || goods.getStock() <= 0) {
+            throw new ServiceException(400, "上架商品库存必须大于 0");
+        }
+        if (goods.getPointsRequired() == null || goods.getPointsRequired() < 0) {
+            throw new ServiceException(400, "商品积分必须大于或等于 0");
+        }
+
         goods.setCreateTime(LocalDateTime.now());
         goodsService.save(goods);
         return Result.success("商品上架成功");
@@ -94,6 +98,13 @@ public class ShopController {
             @RequestBody SysGoods goods,
             @Parameter(hidden = true) @RequestHeader("Role") String role) {
         if (!"ADMIN".equals(role)) throw new ServiceException(403, "权限不足");
+
+        if (goods.getStock() != null && goods.getStock() < 0) {
+            throw new ServiceException(400, "商品库存不能小于 0");
+        }
+        if (goods.getPointsRequired() != null && goods.getPointsRequired() < 0) {
+            throw new ServiceException(400, "商品积分必须大于或等于 0");
+        }
 
         goodsService.updateById(goods);
         return Result.success("商品信息修改成功");
@@ -111,7 +122,7 @@ public class ShopController {
     }
 
     // ==========================================
-    // 📦 O2O 核销审计模块
+    // O2O 核销审计模块
     // ==========================================
 
     @PostMapping("/admin/verify")
@@ -120,9 +131,7 @@ public class ShopController {
             @Parameter(description = "兑换码(GIFT-xxxx)", required = true) @RequestParam String code,
             @Parameter(description = "操作员角色", hidden = true) @RequestHeader("Role") String role) {
 
-        // 业务下沉到 Service
         recordService.verifyExchange(code, role);
-
         return Result.success("核销成功！请发放物品。");
     }
 
