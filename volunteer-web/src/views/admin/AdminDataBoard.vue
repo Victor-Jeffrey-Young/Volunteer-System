@@ -6,7 +6,7 @@
     </div>
 
     <!--
-      第一排图表区：使用 Element Plus 栅格系统
+      使用 Element Plus 栅格系统
       - PC 端 (md): 饼图占 10 份，柱状图占 14 份
       - 移动端 (xs, sm): 强制占满 24 份，实现上下堆叠布局
     -->
@@ -29,7 +29,7 @@
       </el-col>
     </el-row>
 
-    <!-- 第二排图表区：折线图 -->
+    <!-- 图表区：折线图 -->
     <el-row :gutter="20">
       <el-col :xs="24" :sm="24" :md="24" class="chart-col">
         <el-card shadow="hover" class="chart-card">
@@ -43,7 +43,7 @@
 
 <script setup>
 /**
- * 社区数据看板模块 (DataBoard.vue)
+ * 社区数据看板模块
  * 核心功能：通过 ECharts 渲染后端聚合数据，支持跨终端的响应式自适应布局。
  */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
@@ -65,7 +65,7 @@ let lineChart = null;
 const isMobile = ref(window.innerWidth <= 768);
 
 /**
- * 1. 渲染活动类型饼图
+ * 渲染活动类型饼图
  * 业务逻辑：拉取各类型活动的总数，绘制空心环形图
  */
 const renderPieChart = async () => {
@@ -105,7 +105,7 @@ const renderPieChart = async () => {
 };
 
 /**
- * 2. 渲染志愿服务时长排行榜
+ * 渲染志愿服务时长排行榜
  * 业务逻辑：获取 Top 10 用户时长，绘制横向条形图以解决长姓名重叠问题
  */
 const renderBarChart = async () => {

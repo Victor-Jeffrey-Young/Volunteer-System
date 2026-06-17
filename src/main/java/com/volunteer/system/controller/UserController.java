@@ -127,7 +127,7 @@ public class UserController {
 
         SysUser updateEntity = new SysUser();
         updateEntity.setUserId(id);
-        updateEntity.setPassword("123456"); // TODO 2.0: 若引入 BCrypt 加密，此处需设为加密后的密文
+        updateEntity.setPassword("123456");
 
         userService.updateById(updateEntity);
         log.info("管理员重置了用户密码, 目标用户ID: {}", id);

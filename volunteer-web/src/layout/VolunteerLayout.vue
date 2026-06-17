@@ -34,7 +34,6 @@ const fetchLiveNotifications = async () => {
     const res = await announcementApi.getAnnouncements(1, 5);
     // 除非后端明确返回 isRead 为 true 或 1，否则一律视为未读
     notifications.value = (res.data?.records || []).map(n => {
-      // 这里的判定逻辑要非常宽松：
       // 如果 isRead 是 1、true，说明已读；
       // 如果是 0、null、undefined，说明没读过，显示红点
       const isActuallyRead = n.isRead === 1 || n.isRead === true;
@@ -145,7 +144,6 @@ const openAbout = (tab = 'mission') => {
         </nav>
 
         <div class="flex items-center gap-2 sm:gap-4">
-          <!-- 已移除：无功能搜索框 -->
           <div class="relative">
             <button
               @click="isNotifOpen = !isNotifOpen"
@@ -155,7 +153,7 @@ const openAbout = (tab = 'mission') => {
               <span v-if="hasUnread" class="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-orange-600 border-2 border-white"></span>
             </button>
 
-            <!-- Notifications Popover (优化移动端定位与宽度) -->
+            <!-- Notifications Popover -->
             <div
               v-if="isNotifOpen"
               class="absolute -right-16 sm:right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-[360px] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-300"

@@ -11,10 +11,10 @@ export const activityApi = {
 	// 获取活动列表 (对应 ActivityController)
 	getActivities: (params) => request.get('/api/activity/page', {
 		params: {
-			current: params?.current || params?.page || 1, // 支持多种参数名兼容
-			size: params?.size || params?.pageSize || 10,  // 优先取 size，解决 6 个/页失效问题
+			current: params?.current || params?.page || 1,
+			size: params?.size || params?.pageSize || 10,
 			title: params?.title || '',
-			type: params?.type, 						   // 分类过滤
+			type: params?.type,
 			status: (params?.status === '全部' || params?.status === null) ? undefined : params?.status
 		}
 	}),
@@ -24,6 +24,7 @@ export const activityApi = {
 	getMySignups: (userId) => request.get('/api/reg/my', {
 		params: { userId }
 	}),
+
 	// 签到/签退
 	sign: (userId, regId) => request.put('/api/reg/sign', null, { params: { userId, regId } }),
 	signOut: (userId, regId) => request.put('/api/reg/sign-out', null, { params: { userId, regId } })

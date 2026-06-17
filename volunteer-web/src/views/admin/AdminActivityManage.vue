@@ -281,7 +281,7 @@ const filteredActivityList = computed(() => {
   return activityList.value.filter(act => act.status === queryParams.value.status);
 });
 
-// 1. 获取活动列表
+// 获取活动列表
 const fetchActivities = async () => {
   loading.value = true;
   try {
@@ -354,7 +354,7 @@ const handleAdd = async () => {
   try {
     const submitData = JSON.parse(JSON.stringify(newActivity.value));
     const skillsJson = JSON.stringify(submitData.requiredSkills || []);
-    // 兼容性修复：同时发送驼峰和下划线字段，确保数据库一定能存入
+    // 同时发送驼峰和下划线字段，确保数据库一定能存入
     submitData.requiredSkills = skillsJson;
     submitData.required_skills = skillsJson;
 

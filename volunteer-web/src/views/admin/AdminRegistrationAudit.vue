@@ -204,7 +204,7 @@
     <!-- 发放工时弹窗 (响应式适配) -->
     <el-dialog
         v-model="dialogVisible"
-        title="⏱ 发放志愿工时"
+        title="发放志愿工时"
         :width="isMobile ? '90%' : '400px'"
         align-center
         destroy-on-close

@@ -3,7 +3,7 @@
     <!-- 顶部状态概览 -->
     <div class="header-section">
       <div class="stat-card">
-        <h2 class="section-title">✨ 我的微心愿</h2>
+        <h2 class="section-title">我的微心愿</h2>
         <p class="section-subtitle">提交您的困难或需求，社区志愿者将竭诚为您服务</p>
       </div>
       <el-button color="#f97316" size="large" round class="add-wish-btn" @click="openDialog">
@@ -19,9 +19,9 @@
           <h3 class="wish-title">{{ item.title }}</h3>
           <p class="wish-content">{{ item.content }}</p>
           <div class="wish-meta">
-            <span>📅 发布于: {{ formatTime(item.createTime) }}</span>
-            <span v-if="item.address">📍 地点: {{ item.address }}</span>
-            <span v-if="item.isLiked === 1" class="liked-badge">已点赞 👍</span>
+            <span>发布于: {{ formatTime(item.createTime) }}</span>
+            <span v-if="item.address">地点: {{ item.address }}</span>
+            <span v-if="item.isLiked === 1" class="liked-badge">已点赞</span>
           </div>
         </div>
 
@@ -38,7 +38,7 @@
             <div class="volunteer-details">
               <span class="volunteer-name">{{ item.volunteerName || '爱心志愿者' }} 已接单</span>
               <span v-if="item.volunteerPhone" class="volunteer-phone">
-                📞 {{ item.volunteerPhone }}
+                {{ item.volunteerPhone }}
               </span>
             </div>
           </div>
@@ -81,7 +81,7 @@
               @click="handleStandaloneLike(item.wishId)"
               style="margin-bottom: 8px; color: white !important;"
             >
-              为 TA 点赞 👍
+              为 TA 点赞
             </el-button>
 
             <el-button 
@@ -102,7 +102,7 @@
     <!-- 发布弹窗 -->
     <el-dialog 
       v-model="dialogVisible" 
-      title="🏮 发布互助微心愿" 
+      title="发布互助微心愿"
       :width="dialogWidth"
       class="wish-dialog"
     >
@@ -181,7 +181,7 @@
                 <p style="font-size: 12px; font-weight: bold; color: #f97316;">志愿者 {{ selectedWish.volunteerName }} 正在赶来</p>
               </div>
               <div v-if="selectedWish.volunteerPhone" style="margin-top: 6px; padding: 6px 10px; background: #ecfdf5; border-radius: 6px; border: 1px solid #a7f3d0;">
-                <p style="font-size: 11px; color: #059669; font-weight: 500;">📞 联系电话：{{ selectedWish.volunteerPhone }}</p>
+                <p style="font-size: 11px; color: #059669; font-weight: 500;">联系电话：{{ selectedWish.volunteerPhone }}</p>
               </div>
             </div>
             <p v-else style="font-size: 12px; color: #94a3b8;">等待热心志愿者接单...</p>
@@ -204,9 +204,9 @@
             :color="[3,6].includes(selectedWish.status) ? '#f97316' : '#cbd5e1'"
           >
             <div v-if="[3,6].includes(selectedWish.status)">
-              <p style="font-size: 12px; font-weight: 500;">您已在此环节确认了该服务圆满完成。{{ selectedWish.isLiked === 1 ? '您的点赞已送达！👍' : '' }}</p>
+              <p style="font-size: 12px; font-weight: 500;">您已在此环节确认了该服务圆满完成。{{ selectedWish.isLiked === 1 ? '您的点赞已送达！' : '' }}</p>
               <div v-if="selectedWish.remarks && selectedWish.remarks.startsWith('居民评价')" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #fed7aa; margin-top:8px;">
-                <p style="font-size:12px; color:#c2410c; font-style:italic;">💬 "{{ selectedWish.remarks.replace('居民评价: ', '') }}"</p>
+                <p style="font-size:12px; color:#c2410c; font-style:italic;">"{{ selectedWish.remarks.replace('居民评价: ', '') }}"</p>
               </div>
             </div>
             <p v-else style="font-size: 12px; color: #94a3b8;">服务完成后，需要您亲自点击确认...</p>
@@ -248,7 +248,7 @@
     <!-- 满意度核实验收弹窗 -->
     <el-dialog
       v-model="reviewDialogVisible"
-      title="💝 心愿服务验收与评价"
+      title="心愿服务验收与评价"
       width="400px"
       style="border-radius: 16px;"
     >
@@ -257,7 +257,7 @@
       </div>
 
       <el-form label-position="top">
-        <el-form-item label="是否为志愿者点赞 👍">
+        <el-form-item label="是否为志愿者点赞">
           <el-switch v-model="reviewForm.liked" active-color="#f59e0b" inactive-color="#e2e8f0" active-text="送上点赞" inactive-text="不需要" />
         </el-form-item>
         <el-form-item label="写几句感谢留言 (选填)">
@@ -369,7 +369,7 @@ const submitConfirm = async () => {
 const handleStandaloneLike = async (wishId) => {
   try {
     await request.put(`/api/wish/like?wishId=${wishId}`);
-    ElMessage.success('点赞成功！心意已传达给志愿者。👍');
+    ElMessage.success('点赞成功！心意已传达给志愿者。');
     fetchMyWishes();
   } catch (error) {
     // 错误处理由 request.js 统一接管

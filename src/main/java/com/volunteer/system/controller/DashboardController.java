@@ -131,7 +131,6 @@ public class DashboardController {
             @Parameter(description = "排行类型：hours (按时长), points (按积分)", required = true, example = "hours")
             @RequestParam String type) {
         QueryWrapper<SysUser> query = new QueryWrapper<>();
-                 // 🚨 关键：在 SELECT 中加入 last_rank 字段
                 query.select("user_id", "username", "real_name", "avatar", "total_hours", "total_points as points", "last_rank")
                          .eq("role", "VOLUNTEER")
                          .eq("status", 1);

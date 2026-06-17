@@ -3,7 +3,7 @@
     <el-card shadow="never" class="box-card">
       <template #header>
         <div class="card-header">
-          <span style="font-size: 18px; font-weight: bold;">💗 邻里微心愿审计中台</span>
+          <span style="font-size: 18px; font-weight: bold;">邻里微心愿审计中台</span>
           <el-radio-group v-model="filterStatus" @change="handleFilter" size="small">
             <el-radio-button :label="null">全部</el-radio-button>
             <el-radio-button :label="0">待审核</el-radio-button>
@@ -78,7 +78,7 @@
             </div>
 
             <span v-if="scope.row.status === 3" style="color: #67c23a; font-size: 12px; margin-right: 8px;">
-              ✨ 已发放 {{ scope.row.rewardPoints }} 积分
+              已发放 {{ scope.row.rewardPoints }} 积分
             </span>
             <el-button type="info" link size="small" @click="showProgress(scope.row)">轨迹</el-button>
           </template>

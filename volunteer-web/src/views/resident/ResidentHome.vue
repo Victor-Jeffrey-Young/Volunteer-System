@@ -170,7 +170,7 @@
           <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-rose-100 text-rose-600 font-bold shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">1</div>
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-colors shadow-sm">
-              <h5 class="font-bold text-slate-900 text-sm mb-1">📝 发布与审核</h5>
+              <h5 class="font-bold text-slate-900 text-sm mb-1">发布与审核</h5>
               <p class="text-xs text-slate-500">明确标题和详细需求，留下联系方式。提交后由管理员审核并公示到心愿墙。</p>
             </div>
           </div>
@@ -178,7 +178,7 @@
           <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-100 text-blue-600 font-bold shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">2</div>
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-colors shadow-sm">
-              <h5 class="font-bold text-slate-900 text-sm mb-1">🏃 志愿者揭榜与服务</h5>
+              <h5 class="font-bold text-slate-900 text-sm mb-1">志愿者揭榜与服务</h5>
               <p class="text-xs text-slate-500">热心志愿者认领心愿并与您联系，提供线下的帮扶服务，事后在系统中标记完成。</p>
             </div>
           </div>
@@ -186,7 +186,7 @@
           <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-orange-100 text-orange-600 font-bold shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">3</div>
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors shadow-sm">
-              <h5 class="font-bold text-orange-700 text-sm mb-1">✅ 居民核实与点赞 (核心)</h5>
+              <h5 class="font-bold text-orange-700 text-sm mb-1">居民核实与点赞 (核心)</h5>
               <p class="text-xs text-orange-600/80">志愿者标记完成后，需要<strong class="text-orange-700">您亲自在系统点击确认</strong>。您还可以在此环节给志愿者送花点赞 👍！</p>
             </div>
           </div>
@@ -194,7 +194,7 @@
           <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
             <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-emerald-100 text-emerald-600 font-bold shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10">4</div>
             <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-slate-100 bg-white hover:bg-slate-50 transition-colors shadow-sm">
-              <h5 class="font-bold text-slate-900 text-sm mb-1">🎁 系统结算奖励</h5>
+              <h5 class="font-bold text-slate-900 text-sm mb-1">系统结算奖励</h5>
               <p class="text-xs text-slate-500">在获得您的确认后，管理员将介入核发，最终为志愿者发放工时和荣誉积分，流程结束。</p>
             </div>
           </div>

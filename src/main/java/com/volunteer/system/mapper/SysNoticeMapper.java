@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface SysNoticeMapper extends BaseMapper<SysNotice> {
     /**
-     * 🚨 修复 BindingException：实装企业级关联查询 SQL
+     * 实装企业级关联查询 SQL
      * 逻辑：左连接已读表，并根据标题关键词进行模糊过滤
      */
     @Select("<script>" +

@@ -27,7 +27,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     private SysUserService userService; // 注入 User 服务，用于更新总时长
 
     // 开启数据库事务，保证报名表和活动表同时更新成功或同时回滚
-    // 1. 修复：报名接口 (允许多次报名，保留被拒绝的历史记录)
+    // 1. 报名接口 (允许多次报名，保留被拒绝的历史记录)
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void applyActivity(Long userId, Long activityId) {
@@ -35,7 +35,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         if (activity == null || activity.getStatus() != 0) throw new ServiceException(404, "活动不存在或已停止招募");
         if (activity.getCurrentNum() >= activity.getCapacity()) throw new ServiceException(400, "名额已满！");
 
-        // 不再使用 getOne，而是只拦截那些“正在进行中”的状态 (0,1,3,5)
+        // 只拦截那些“正在进行中”的状态 (0,1,3,5)
         LambdaQueryWrapper<SysRegistration> query = new LambdaQueryWrapper<>();
         query.eq(SysRegistration::getUserId, userId)
                 .eq(SysRegistration::getActivityId, activityId)
@@ -58,7 +58,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         activityService.updateById(activity);
     }
 
-    // 2. 新增：取消报名逻辑 (问题 5)
+    // 2. 取消报名逻辑
     @Transactional(rollbackFor = Exception.class)
     public void cancelRegistration(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
@@ -76,7 +76,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         }
     }
 
-    // 1. 签到打卡 (开始)
+    // 3. 签到打卡 (开始)
     public void signIn(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
@@ -108,7 +108,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         this.updateById(reg);
     }
 
-    // 2. 签退打卡 (结束)
+    // 4. 签退打卡 (结束)
     public void signOut(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
@@ -119,7 +119,7 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         this.updateById(reg);
     }
 
-    // 3. 发放工时与积分
+    // 5. 发放工时与积分
     @Transactional(rollbackFor = Exception.class)
     public void grantHours(Long regId, BigDecimal actualHours) {
         SysRegistration reg = this.getById(regId);
@@ -130,15 +130,15 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         // 计算本次应发积分 (假设 1小时 = 10积分)
         int earnedPoints = actualHours.intValue() * 10;
 
-        reg.setStatus(3); // 3-完结
+        reg.setStatus(3);                   // 3-完结
         reg.setActualHours(actualHours);
-        reg.setRewardPoints(earnedPoints); // 🚨 记录本次获得的积分
+        reg.setRewardPoints(earnedPoints);  // 记录本次获得的积分
         this.updateById(reg);
 
         SysUser user = userService.getById(reg.getUserId());
         if (user != null) {
             user.setTotalHours(user.getTotalHours().add(actualHours));
-            // 🚨 双积分同时增加
+            // 双积分同时增加
             user.setTotalPoints(user.getTotalPoints() + earnedPoints);
             user.setCurrentPoints(user.getCurrentPoints() + earnedPoints);
             userService.updateById(user);

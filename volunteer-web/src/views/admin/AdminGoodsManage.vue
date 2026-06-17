@@ -210,7 +210,7 @@
     </el-dialog>
 
     <!-- 核销弹窗 (集成扫码功能) -->
-    <el-dialog v-model="verifyVisible" title="📦 礼品兑换核销" :width="isMobile ? '90%' : '400px'" align-center
+    <el-dialog v-model="verifyVisible" title="礼品兑换核销" :width="isMobile ? '90%' : '400px'" align-center
       @close="stopScan" destroy-on-close>
       <div style="text-align: center; display: flex; flex-direction: column; align-items: center;">
 

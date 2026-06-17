@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard-compact">
-    <!-- 顶部：系统广播条 -->
+    <!-- 系统广播条 -->
     <div class="info-ticker bg-slate-900 text-white shadow-lg rounded-xl px-6 py-2.5 mb-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <Megaphone class="w-4 h-4 text-orange-500 animate-pulse" />
@@ -9,7 +9,7 @@
       <span class="text-[10px] opacity-60 font-mono">{{ new Date().toLocaleDateString() }} {{ new Date().toLocaleTimeString() }}</span>
     </div>
 
-    <!-- 第一行：核心指标 (横向排列) -->
+    <!-- 核心指标 (横向排列) -->
     <div class="stats-row-grid">
       <div v-for="stat in statCards" :key="stat.title" class="compact-stat-card shadow-sm">
         <div class="stat-icon-mini" :style="{ backgroundColor: stat.bgColor }">
@@ -25,10 +25,10 @@
       </div>
     </div>
 
-    <!-- 第二行：图表与审批 (并排) -->
+    <!-- 图表与审批 (并排) -->
     <div class="main-content-grid">
       
-      <!-- 核心成就数据仪表 (主图表替换) -->
+      <!-- 核心成就数据仪表 -->
       <div class="chart-column bg-slate-900 shadow-xl rounded-2xl border border-slate-800 relative ">
         
         <!-- 背景装饰光晕 -->
@@ -57,7 +57,7 @@
             <p class="text-[11px] text-slate-500 mt-2 ml-1">里程碑：每一小时的奉献，都在让世界变得更美好。</p>
           </div>
 
-          <!-- 底部微型趋势图 (仅做点缀展示) -->
+          <!-- 底部微型趋势图 -->
           <div class="mt-auto h-12 w-full flex items-end gap-1.5 opacity-50 hover:opacity-100 transition-opacity">
             <template v-if="trendData.length > 0">
               <div v-for="item in trendData" :key="item.month" class="flex-1 bg-slate-800/50 rounded-t-sm relative group cursor-pointer h-full flex flex-col justify-end">
@@ -108,17 +108,17 @@
 
     </div>
 
-    <!-- 第三行：新功能数据可视化 ECharts 面板 -->
+    <!-- 数据可视化 ECharts 面板 -->
     <div class="echarts-row-grid mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
         <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-          🏮 微心愿分类占比
+          微心愿分类占比
         </h3>
         <div ref="pieChartRef" class="w-full h-64"></div>
       </div>
       <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
         <h3 class="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-          👍 居民点赞光荣榜 TOP 10
+          居民点赞光荣榜 TOP 10
         </h3>
         <div ref="barChartRef" class="w-full h-64"></div>
       </div>

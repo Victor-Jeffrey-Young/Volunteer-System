@@ -21,7 +21,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "01. 认证模块", description = "处理用户登录、注册与身份签发") // 🚨 Knife4j 左侧菜单分类名
+@Tag(name = "01. 认证模块", description = "处理用户登录、注册与身份签发") // Knife4j 左侧菜单分类名
 public class AuthController {
 
     @Autowired

@@ -4,7 +4,7 @@
 
     <el-card class="profile-card">
       <el-tabs v-model="activeTab">
-        <!-- 标签页 1：基本资料 -->
+        <!-- 基本资料 -->
         <el-tab-pane label="基本信息" name="info">
           <el-form :model="profileForm" label-width="100px" style="margin-top: 20px; max-width: 500px;">
             <el-form-item label="管理员头像">
@@ -45,7 +45,7 @@
           </el-form>
         </el-tab-pane>
 
-        <!-- 标签页 2：安全设置 -->
+        <!-- 安全设置 -->
         <el-tab-pane label="安全设置" name="pwd">
           <el-form :model="pwdForm" label-width="100px" style="margin-top: 20px; max-width: 500px;">
             <div class="security-tip">
