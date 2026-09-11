@@ -8,4 +8,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SysActivityServiceImpl extends ServiceImpl<SysActivityMapper, SysActivity> implements SysActivityService {
+
+    /**
+     * 实现接口中定义的方法，底层调用 Mapper 手写的 SQL
+     */
+    @Override
+    public SysActivity getByIdForUpdate(Long activityId) {
+        return baseMapper.selectByIdForUpdate(activityId);
+    }
 }

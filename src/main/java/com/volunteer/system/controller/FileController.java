@@ -54,31 +54,74 @@ public class FileController {
 
         if (file == null || file.isEmpty()) throw new ServiceException(400, "文件为空");
 
-        // 1. 安全过滤：限制文件类型
+        // 1. 安全过滤：限制文件类型（只信 Content-Type 是不够的，但先挡掉明显的非图片）
         String contentType = file.getContentType();
         if (contentType == null || !contentType.startsWith("image/")) {
             throw new ServiceException(400, "仅允许上传图片文件");
         }
 
-        // 2. 动态目录构建：例如 /files/avatar/
-        String subDir = type + "/";
-        String finalUploadPath = UPLOAD_PATH + subDir;
+        // 2. 分类目录必须来自白名单。
+        //    早期实现直接把客户端传的 type 拼进路径（UPLOAD_PATH + type + "/"），
+        //    传 type=../../.. 就能把文件写到 web 根目录之外，是典型的路径穿越。
+        String subDir = resolveSubDir(type);
 
-        // 3. 自动创建目录
+        String originalName = file.getOriginalFilename();
+        String extension = extractExtension(originalName);
+
+        // 3. 自动创建目录并校验最终路径仍落在上传根目录内（双保险）
+        String finalUploadPath = UPLOAD_PATH + subDir + "/";
         File folder = new File(finalUploadPath);
-        if (!folder.exists()) folder.mkdirs();
+        if (!folder.exists() && !folder.mkdirs()) {
+            throw new ServiceException(500, "上传目录创建失败");
+        }
 
-        // 4. 生成新文件名
-        String fileName = UUID.randomUUID().toString().replace("-", "") +
-                file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf("."));
+        // 4. 生成新文件名：完全丢弃用户提供的文件名，只保留经白名单校验的扩展名
+        String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
+        File target = new File(folder, fileName);
+        if (!target.getAbsoluteFile().toPath().normalize()
+                .startsWith(new File(UPLOAD_PATH).getAbsoluteFile().toPath().normalize())) {
+            throw new ServiceException(400, "非法的存储路径");
+        }
 
         try {
-            file.transferTo(new File(finalUploadPath + fileName));
+            file.transferTo(target);
 
             // 返回给前端的 URL 必须带上子路径，如 /files/avatar/xxx.jpg
-            return Result.success("/files/" + subDir + fileName);
+            return Result.success("/files/" + subDir + "/" + fileName);
         } catch (IOException e) {
+            log.error("文件写入失败: {}", e.getMessage());
             throw new ServiceException(500, "磁盘写入失败");
         }
+    }
+
+    /** 允许的分类目录白名单 */
+    private static final java.util.Set<String> ALLOWED_TYPES =
+            java.util.Set.of("avatar", "goods", "activity", "common");
+
+    /** 允许的图片扩展名白名单 */
+    private static final java.util.Set<String> ALLOWED_EXTENSIONS =
+            java.util.Set.of(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp");
+
+    /** 把客户端传入的分类收敛到白名单内的固定值，非法值一律落到 common */
+    private String resolveSubDir(String type) {
+        if (type == null) return "common";
+        String normalized = type.trim().toLowerCase();
+        return ALLOWED_TYPES.contains(normalized) ? normalized : "common";
+    }
+
+    /** 只从原始文件名里取扩展名，并做白名单校验；没有扩展名或类型不合法时报错 */
+    private String extractExtension(String originalName) {
+        if (originalName == null) {
+            throw new ServiceException(400, "文件名不能为空");
+        }
+        int dot = originalName.lastIndexOf('.');
+        if (dot < 0) {
+            throw new ServiceException(400, "文件缺少扩展名");
+        }
+        String extension = originalName.substring(dot).toLowerCase();
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new ServiceException(400, "仅支持 jpg / jpeg / png / gif / webp / bmp 格式");
+        }
+        return extension;
     }
 }

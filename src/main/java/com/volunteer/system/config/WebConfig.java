@@ -12,6 +12,9 @@ public class WebConfig implements WebMvcConfigurer {
     @Autowired
     private JwtInterceptor jwtInterceptor;
 
+    @Autowired
+    private AdminInterceptor adminInterceptor;
+
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
@@ -23,6 +26,12 @@ public class WebConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",
                         "/favicon.ico"
                 );
+
+        // 授权层：在认证之后执行，统一裁决 @RequiresAdmin 声明的管理员接口。
+        // 顺序很重要 —— 必须先由 JwtInterceptor 解析出可信角色，这里才有得判。
+        registry.addInterceptor(adminInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns("/api/auth/**");
     }
 
     @Override

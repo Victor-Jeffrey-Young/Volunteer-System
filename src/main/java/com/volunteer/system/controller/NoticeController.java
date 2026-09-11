@@ -3,6 +3,7 @@ package com.volunteer.system.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.volunteer.system.common.RequiresAdmin;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysNotice;
@@ -42,7 +43,7 @@ public class NoticeController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer current,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "公告标题搜索") @RequestParam(required = false) String title,
-            @RequestHeader(name = "userId", required = false) Long userId) { // 🚨 从 Header 拿 UID
+            @RequestAttribute("userId") Long userId) { // userId 取自 JWT，前端注入的 Header 一律忽略
 
         log.info("查询公告列表 - 用户: {}, 搜索词: {}", userId, title);
 
@@ -57,14 +58,9 @@ public class NoticeController {
      * 仅具备 ADMIN 角色的用户可调用，系统会自动记录当前服务器时间为发布时间。
      */
     @PostMapping("/add")
-    @Operation(summary = "[Admin] 发布新公告", description = "管理员专用，需在 Header 携带 Role: ADMIN")
-    public Result<String> addNotice(
-            @RequestBody SysNotice notice,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) {
-            throw new ServiceException(403, "权限不足，仅管理员可发布公告");
-        }
+    @RequiresAdmin
+    @Operation(summary = "[Admin] 发布新公告", description = "管理员专用，由 AdminInterceptor 统一鉴权")
+    public Result<String> addNotice(@RequestBody SysNotice notice) {
 
         notice.setCreateTime(LocalDateTime.now());
         noticeService.save(notice);
@@ -77,14 +73,9 @@ public class NoticeController {
      * 修改公告信息
      */
     @PutMapping("/update")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 编辑公告", description = "修改已有公告的标题、正文或类型")
-    public Result<String> updateNotice(
-            @RequestBody SysNotice notice,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) {
-            throw new ServiceException(403, "权限不足，无权修改公告");
-        }
+    public Result<String> updateNotice(@RequestBody SysNotice notice) {
 
         noticeService.updateById(notice);
         return Result.success("修改成功");
@@ -94,14 +85,10 @@ public class NoticeController {
      * 删除公告
      */
     @DeleteMapping("/{id}")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 物理删除公告", description = "根据 ID 永久删除该条记录")
     public Result<String> deleteNotice(
-            @Parameter(description = "要删除的公告ID") @PathVariable Long id,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) {
-            throw new ServiceException(403, "权限不足，无权删除公告");
-        }
+            @Parameter(description = "要删除的公告ID") @PathVariable Long id) {
 
         noticeService.removeById(id);
         log.warn("管理员删除了公告, ID: {}", id);
@@ -116,7 +103,7 @@ public class NoticeController {
     @Operation(summary = "标记单条公告为已读", description = "用户点击查看详情后触发，用于消除红点通知")
     public Result<String> markAsRead(
             @Parameter(description = "公告ID", required = true) @PathVariable Long id,
-            @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
+            @RequestAttribute("userId") Long userId) {
         // 向 sys_notice_read 插入一条记录（如果已存在则忽略）
         noticeService.markAsRead(userId, id);
         return Result.success("已读");
@@ -128,7 +115,7 @@ public class NoticeController {
     @PostMapping("/read-all")
     @Operation(summary = "全部标记为已读", description = "用于一键清理所有未读通知红点")
     public Result<String> markAllAsRead(
-            @Parameter(description = "当前用户ID", required = true) @RequestHeader("userId") Long userId) {
+            @RequestAttribute("userId") Long userId) {
         // 将所有未读公告 ID 批量插入 sys_notice_read
         noticeService.markAllAsRead(userId);
         return Result.success("全部已读");

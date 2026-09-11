@@ -11,6 +11,7 @@ import com.volunteer.system.service.SysActivityService;
 import com.volunteer.system.service.SysRegistrationService;
 import com.volunteer.system.service.SysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,11 @@ import java.time.LocalDateTime;
 
 @Service
 public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMapper, SysRegistration> implements SysRegistrationService {
+
+    /** 积分折算规则：1 小时 = 10 积分（原来散落在方法体里的魔法数字，统一提为常量） */
+    private static final int POINTS_PER_HOUR = 10;
+    /** 单次核发工时的上限，防止误填导致排行榜与积分体系失真 */
+    private static final BigDecimal MAX_HOURS_PER_GRANT = new BigDecimal("24");
 
     @Autowired
     private SysActivityService activityService;
@@ -31,15 +37,18 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void applyActivity(Long userId, Long activityId) {
-        SysActivity activity = activityService.getById(activityId);
+        // 悲观锁锁住活动行：同一活动的所有报名请求在此串行化，
+        // 后到的请求能读到最新已提交数据，杜绝并发判重穿透与名额超卖
+        SysActivity activity = activityService.getByIdForUpdate(activityId);
         if (activity == null || activity.getStatus() != 0) throw new ServiceException(404, "活动不存在或已停止招募");
         if (activity.getCurrentNum() >= activity.getCapacity()) throw new ServiceException(400, "名额已满！");
 
-        // 只拦截那些“正在进行中”的状态 (0,1,3,5)
+        // 有效状态判重 (0待审/1通过/3完结/5已签到/6已签退)；
+        // 2(拒绝)、4(取消) 不占用名额，允许重新报名
         LambdaQueryWrapper<SysRegistration> query = new LambdaQueryWrapper<>();
         query.eq(SysRegistration::getUserId, userId)
                 .eq(SysRegistration::getActivityId, activityId)
-                .in(SysRegistration::getStatus, 0, 1, 3, 5); // 排除 2(拒绝) 和 4(取消)
+                .in(SysRegistration::getStatus, 0, 1, 3, 5, 6);
 
         if (this.count(query) > 0) {
             throw new ServiceException(409, "您当前已有该活动的有效报名，请勿重复操作！");
@@ -52,7 +61,13 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         reg.setStatus(0);
         reg.setApplyTime(LocalDateTime.now());
         reg.setActualHours(new java.math.BigDecimal("0.00"));
-        this.save(reg);
+        try {
+            this.save(reg);
+        } catch (DuplicateKeyException e) {
+            // 数据库唯一索引兜底 (user_id + activity_id + 有效状态生成列)：
+            // 锁内判重理论上已拦住，这里防御任何残余竞态
+            throw new ServiceException(409, "您当前已有该活动的有效报名，请勿重复操作！");
+        }
 
         activity.setCurrentNum(activity.getCurrentNum() + 1);
         activityService.updateById(activity);
@@ -67,8 +82,8 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
             reg.setStatus(4); // 4-已取消
             this.updateById(reg);
 
-            // 释放名额
-            SysActivity activity = activityService.getById(reg.getActivityId());
+            // 释放名额：先锁活动行再扣减，防止并发报名/取消交错导致计数错乱
+            SysActivity activity = activityService.getByIdForUpdate(reg.getActivityId());
             activity.setCurrentNum(activity.getCurrentNum() - 1);
             activityService.updateById(activity);
         } else {
@@ -122,32 +137,46 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     // 5. 发放工时与积分
     @Transactional(rollbackFor = Exception.class)
     public void grantHours(Long regId, BigDecimal actualHours) {
-        SysRegistration reg = this.getById(regId);
-        if (reg == null || (reg.getStatus() != 6 && reg.getStatus() != 5 && reg.getStatus() != 1)) {
+        // 入参校验：早期版本完全不校验，传负数可以「倒扣」他人工时积分，
+        // 传天文数字则能把排行榜直接刷废
+        if (actualHours == null || actualHours.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ServiceException(400, "核发工时必须大于 0");
+        }
+        if (actualHours.compareTo(MAX_HOURS_PER_GRANT) > 0) {
+            throw new ServiceException(400, "单次核发工时不能超过 " + MAX_HOURS_PER_GRANT + " 小时");
+        }
+
+        // 锁住报名行：并发重复结算时后到的事务会阻塞在这里，
+        // 拿到锁后读到的是「已完结(3)」，被下面的状态校验拦下 —— 这就是幂等的实现，
+        // 不需要额外维护一张幂等表。
+        SysRegistration reg = baseMapper.selectByIdForUpdate(regId);
+        if (reg == null) {
+            throw new ServiceException(404, "报名记录不存在");
+        }
+        if (reg.getStatus() == null || (reg.getStatus() != 6 && reg.getStatus() != 5 && reg.getStatus() != 1)) {
             throw new ServiceException(400, "当前状态无法发放工时");
         }
 
-        // 计算本次应发积分 (假设 1小时 = 10积分)
-        int earnedPoints = actualHours.intValue() * 10;
+        // 计算本次应发积分 (1 小时 = 10 积分)。
+        // 用 multiply 而不是 intValue() * 10：后者会先把 1.9 小时截断成 1 小时，少发积分。
+        int earnedPoints = actualHours.multiply(BigDecimal.valueOf(POINTS_PER_HOUR)).intValue();
 
         reg.setStatus(3);                   // 3-完结
         reg.setActualHours(actualHours);
         reg.setRewardPoints(earnedPoints);  // 记录本次获得的积分
         this.updateById(reg);
 
-        SysUser user = userService.getById(reg.getUserId());
-        if (user != null) {
-            user.setTotalHours(user.getTotalHours().add(actualHours));
-            // 双积分同时增加
-            user.setTotalPoints(user.getTotalPoints() + earnedPoints);
-            user.setCurrentPoints(user.getCurrentPoints() + earnedPoints);
-            userService.updateById(user);
+        // 原子累加用户资产（可用积分 + 总积分 + 总工时），避免并发读改写丢更新，
+        // 也省掉了原来对 totalHours / totalPoints 可能为 null 的手工兜底。
+        if (userService.addRewards(reg.getUserId(), earnedPoints, actualHours) != 1) {
+            throw new ServiceException(404, "用户不存在，工时结算失败");
         }
     }
 
     /**
      * 管理员审核报名 (通过/拒绝)
      */
+    @Transactional(rollbackFor = Exception.class)
     public void auditRegistration(Long regId, Integer status, String remarks) {
         SysRegistration reg = this.getById(regId);
         if (reg == null || reg.getStatus() != 0) {
@@ -159,8 +188,9 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
         this.updateById(reg);
 
         // 扩展逻辑：如果拒绝了，活动的已招募人数应该 -1 释放名额
+        // 锁活动行再释放，与报名入口共用一把锁，保证计数一致
         if (status == 2) {
-            SysActivity activity = activityService.getById(reg.getActivityId());
+            SysActivity activity = activityService.getByIdForUpdate(reg.getActivityId());
             if (activity != null && activity.getCurrentNum() > 0) {
                 activity.setCurrentNum(activity.getCurrentNum() - 1);
                 activityService.updateById(activity);

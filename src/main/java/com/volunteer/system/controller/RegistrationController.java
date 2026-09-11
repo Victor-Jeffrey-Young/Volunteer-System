@@ -2,6 +2,7 @@ package com.volunteer.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.volunteer.system.common.RequiresAdmin;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.entity.SysRegistration;
@@ -46,7 +47,7 @@ public class RegistrationController {
     @PostMapping("/apply")
     @Operation(summary = "提交报名申请", description = "后端会校验防超卖并发、以及是否重复报名")
     public Result<String> apply(
-            @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId,
+            @RequestAttribute("userId") Long userId,
             @Parameter(description = "报名的活动ID", required = true) @RequestParam Long activityId) {
         log.info("接收到报名请求 - 用户ID: {}, 活动ID: {}", userId, activityId);
         
@@ -62,7 +63,7 @@ public class RegistrationController {
     @Operation(summary = "主动取消报名", description = "仅在待审核或已通过状态下允许取消，并释放名额")
     public Result<String> cancel(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
-            @Parameter(description = "志愿者用户ID(安全校验)", required = true) @RequestParam Long userId) {
+            @RequestAttribute("userId") Long userId) {
         
         registrationService.cancelRegistration(regId, userId);
         return Result.success("已成功取消报名");
@@ -74,7 +75,7 @@ public class RegistrationController {
     @GetMapping("/my")
     @Operation(summary = "获取我的报名记录", description = "按申请时间倒序排列，包含关联的活动状态")
     public Result<List<SysRegistration>> getMyRecords(
-            @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId) {
+            @RequestAttribute("userId") Long userId) {
 
         LambdaQueryWrapper<SysRegistration> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRegistration::getUserId, userId).orderByDesc(SysRegistration::getApplyTime);
@@ -107,7 +108,7 @@ public class RegistrationController {
     @Operation(summary = "现场扫码签到", description = "校验活动必须为进行中状态，记录 signInTime")
     public Result<String> signIn(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
-            @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId) {
+            @RequestAttribute("userId") Long userId) {
         
         registrationService.signIn(regId, userId);
         log.info("签到成功 - 记录ID: {}", regId);
@@ -121,7 +122,7 @@ public class RegistrationController {
     @Operation(summary = "现场扫码签退", description = "服务结束打卡，记录 signOutTime")
     public Result<String> signOut(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
-            @Parameter(description = "志愿者用户ID", required = true) @RequestParam Long userId) {
+            @RequestAttribute("userId") Long userId) {
         
         registrationService.signOut(regId, userId);
         log.info("签退成功 - 记录ID: {}", regId);
@@ -136,6 +137,7 @@ public class RegistrationController {
      * 管理员分页查询所有报名记录 (支持多维筛选)
      */
     @GetMapping("/admin/page")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 分页查询全局报名流水", description = "支持按状态筛选，包含用户信息和活动信息")
     @Parameters({
             @Parameter(name = "current", description = "当前页码", example = "1"),
@@ -143,12 +145,9 @@ public class RegistrationController {
             @Parameter(name = "status", description = "流转状态过滤(如: 0-待审, 6-已签退)")
     })
     public Result<Page<SysRegistration>> getAdminPage(
-            @Parameter(hidden = true) @RequestHeader("Role") String role,
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Integer status) {
-
-        if (!"ADMIN".equals(role)) return Result.error(403, "权限不足");
 
         Page<SysRegistration> pageInfo = new Page<>(current, size);
         LambdaQueryWrapper<SysRegistration> wrapper = new LambdaQueryWrapper<>();
@@ -190,12 +189,10 @@ public class RegistrationController {
      * 获取指定活动的报名人员名单 (用于活动管理页面的穿透查询)
      */
     @GetMapping("/admin/activity/{activityId}")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 获取单项活动名单", description = "查询指定活动的报名人员列表(含历史被拒/取消记录)")
     public Result<List<SysRegistration>> getApplicantsByActivity(
-            @Parameter(description = "活动ID", required = true) @PathVariable Long activityId,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) return Result.error(403, "权限不足");
+            @Parameter(description = "活动ID", required = true) @PathVariable Long activityId) {
 
         LambdaQueryWrapper<SysRegistration> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(SysRegistration::getActivityId, activityId)
@@ -219,6 +216,7 @@ public class RegistrationController {
      * 管理员审核报名申请
      */
     @PutMapping("/admin/audit")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 审核报名申请", description = "操作状态机流转 (1-通过, 2-拒绝)")
     @Parameters({
             @Parameter(name = "regId", description = "报名记录ID", required = true),
@@ -229,7 +227,7 @@ public class RegistrationController {
             @RequestParam Long regId,
             @RequestParam Integer status,
             @RequestParam(required = false) String remarks) {
-        
+
         registrationService.auditRegistration(regId, status, remarks);
         return Result.success("审核操作成功");
     }
@@ -238,11 +236,12 @@ public class RegistrationController {
      * 管理员发放工时与双轨积分 (核心闭环)
      */
     @PostMapping("/admin/grant")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 一键结算工时(支持事务)", description = "结算后自动增加用户的累计时长及双轨积分，状态变为已完结")
     public Result<String> grantHours(
             @Parameter(description = "报名记录ID", required = true) @RequestParam Long regId,
             @Parameter(description = "最终核发的小时数", required = true) @RequestParam BigDecimal actualHours) {
-        
+
         registrationService.grantHours(regId, actualHours);
         log.info("工时结算成功 - 记录ID: {}, 发放工时: {}h", regId, actualHours);
         return Result.success("工时发放成功！");

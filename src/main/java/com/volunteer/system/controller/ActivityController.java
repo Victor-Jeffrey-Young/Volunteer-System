@@ -2,6 +2,7 @@ package com.volunteer.system.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.volunteer.system.common.RequiresAdmin;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.service.SysActivityService;
@@ -68,15 +69,9 @@ public class ActivityController {
      * 后端会自动初始化报名人数为 0，状态为“招募中”，并记录发布时间。
      */
     @PostMapping("/add")
-    @Operation(summary = "[Admin] 发布新活动", description = "仅管理员可调用")
-    public Result<String> addActivity(
-            @RequestBody SysActivity activity,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        // 权限校验
-        if (!"ADMIN".equals(role)) {
-            return Result.error(403, "权限不足，只有管理员可以发布活动");
-        }
+    @RequiresAdmin
+    @Operation(summary = "[Admin] 发布新活动", description = "仅管理员可调用（由 AdminInterceptor 统一鉴权）")
+    public Result<String> addActivity(@RequestBody SysActivity activity) {
 
         // 初始化业务字段
         activity.setCurrentNum(0); // 初始报名人数
@@ -94,12 +89,9 @@ public class ActivityController {
      * 常用于调整活动详情，或手动变更活动状态（如：招募中 -> 进行中）。
      */
     @PutMapping("/update")
-    @Operation(summary = "[Admin] 修改活动信息", description = "仅管理员可调用")
-    public Result<String> updateActivity(
-            @RequestBody SysActivity activity,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) return Result.error(403, "无权修改");
+    @RequiresAdmin
+    @Operation(summary = "[Admin] 修改活动信息", description = "仅管理员可调用（由 AdminInterceptor 统一鉴权）")
+    public Result<String> updateActivity(@RequestBody SysActivity activity) {
 
         activityService.updateById(activity);
         log.info("活动信息被修改，活动ID: {}", activity.getActivityId());
@@ -112,12 +104,10 @@ public class ActivityController {
      * 注意：这是一个物理删除，关联的报名记录会成为“孤儿记录”。
      */
     @DeleteMapping("/{id}")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 删除活动", description = "物理删除，请谨慎操作")
     public Result<String> deleteActivity(
-            @Parameter(description = "要删除的活动ID") @PathVariable Long id,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        if (!"ADMIN".equals(role)) return Result.error(403, "无权删除");
+            @Parameter(description = "要删除的活动ID") @PathVariable Long id) {
 
         activityService.removeById(id);
         log.warn("活动被物理删除，活动ID: {}", id);

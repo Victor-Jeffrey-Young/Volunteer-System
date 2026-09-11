@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -22,7 +23,14 @@ public class SysUser {
     @Schema(description = "登录账号(唯一)", example = "admin")
     private String username;
 
-    @Schema(description = "登录密码(前端请勿展示)")
+    /**
+     * 登录密码。
+     *
+     * WRITE_ONLY：允许从请求体反序列化（注册/改密需要），但序列化响应时一律丢弃，
+     * 防止 /api/user/page 这类直接返回实体的接口把 BCrypt 哈希泄漏给前端。
+     */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Schema(description = "登录密码(仅入参，永不回传)", accessMode = Schema.AccessMode.WRITE_ONLY)
     private String password;
 
     @Schema(description = "真实姓名(用于荣誉证书生成)", example = "张三")

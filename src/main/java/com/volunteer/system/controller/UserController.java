@@ -3,9 +3,11 @@ package com.volunteer.system.controller;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.github.xiaoymin.knife4j.annotations.ApiSupport;
+import com.volunteer.system.common.RequiresAdmin;
 import com.volunteer.system.common.Result;
 import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.service.SysUserService;
+import com.volunteer.system.utils.PasswordUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -35,6 +37,7 @@ public class UserController {
     // ==========================================
 
     @GetMapping("/page")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 分页与多维筛选查询用户", description = "利用动态SQL，支持按角色、状态过滤及按姓名/账号模糊检索")
     @Parameters({
             @Parameter(name = "current", description = "当前页码", example = "1"),
@@ -44,16 +47,12 @@ public class UserController {
             @Parameter(name = "status", description = "账号状态(1-正常, 0-封禁)")
     })
     public Result<Page<SysUser>> getPage(
-            @Parameter(hidden = true) @RequestHeader("Role") String roleHeader,
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String role,
             @RequestParam(required = false) Integer status
     ) {
-        // 安全拦截
-        if (!"ADMIN".equals(roleHeader)) return Result.error(403, "权限不足");
-
         Page<SysUser> pageInfo = new Page<>(current, size);
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
 
@@ -80,8 +79,10 @@ public class UserController {
     }
 
     @PutMapping("/status")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 切换用户状态", description = "用于封禁违规用户或解除封禁限制")
     public Result<String> updateStatus(@RequestBody SysUser user) {
+
         // 查出目标用户信息，防止管理员互相伤害
         SysUser target = userService.getById(user.getUserId());
         if (target != null && "ADMIN".equals(target.getRole())) {
@@ -95,8 +96,10 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 物理删除用户", description = "警告：此操作不可逆")
     public Result<String> deleteUser(@PathVariable Long id) {
+
         // 保护管理员账号不被物理删除
         SysUser target = userService.getById(id);
         if (target != null && "ADMIN".equals(target.getRole())) {
@@ -109,15 +112,10 @@ public class UserController {
     }
 
     @PutMapping("/reset-pwd/{id}")
+    @RequiresAdmin
     @Operation(summary = "[Admin] 强制重置用户密码", description = "将指定用户的密码恢复为默认值 123456")
     public Result<String> resetPassword(
-            @Parameter(description = "被重置的用户ID") @PathVariable Long id,
-            @Parameter(hidden = true) @RequestHeader("Role") String role) {
-
-        // 安全校验：只有管理员可以重置别人密码
-        if (!"ADMIN".equals(role)) {
-            return Result.error(403, "权限不足，仅管理员可执行此操作");
-        }
+            @Parameter(description = "被重置的用户ID") @PathVariable Long id) {
 
         // 禁止重置其他管理员的密码
         SysUser target = userService.getById(id);
@@ -127,7 +125,7 @@ public class UserController {
 
         SysUser updateEntity = new SysUser();
         updateEntity.setUserId(id);
-        updateEntity.setPassword("123456");
+        updateEntity.setPassword(PasswordUtils.encode("123456"));
 
         userService.updateById(updateEntity);
         log.info("管理员重置了用户密码, 目标用户ID: {}", id);
@@ -142,7 +140,7 @@ public class UserController {
     @GetMapping("/info")
     @Operation(summary = "获取当前用户详细信息", description = "用于导航栏和个人中心数据回显，包含数据脱敏处理")
     public Result<SysUser> getUserInfo(
-            @Parameter(description = "当前登录用户ID", required = true) @RequestParam Long userId) {
+            @RequestAttribute("userId") Long userId) {
 
         SysUser user = userService.getById(userId);
         if (user != null) {
@@ -154,16 +152,19 @@ public class UserController {
 
     @PutMapping("/profile")
     @Operation(summary = "修改个人基本资料与技能画像", description = "采用白名单更新策略，防止越权篡改核心资产")
-    public Result<String> updateProfile(@RequestBody SysUser user) {
-        if (user.getUserId() == null) {
+    public Result<String> updateProfile(
+            @RequestAttribute("userId") Long userId,
+            @RequestBody SysUser user) {
+        // 仅允许登录用户维护自己的资料，userId 以 JWT 为准，忽略前端传入
+        if (userId == null) {
             return Result.error(400, "用户ID不能为空");
         }
 
         // 防越权篡改 (Field-level Protection)。
         // 绝对不能直接使用 userService.updateById(user); 否则恶意抓包者可修改 totalPoints 和 totalHours！
-        // 必须实例化一个全新的“安全沙箱”对象，按“白名单”放行允许修改的字段。
+        // 必须实例化一个全新的安全沙箱对象，按白名单放行允许修改的字段。
         SysUser updateEntity = new SysUser();
-        updateEntity.setUserId(user.getUserId());
+        updateEntity.setUserId(userId);
         updateEntity.setRealName(user.getRealName());
         updateEntity.setPhone(user.getPhone());
         updateEntity.setGender(user.getGender());
@@ -179,10 +180,11 @@ public class UserController {
     @PutMapping("/password")
     @Operation(summary = "用户自主修改密码", description = "需提交并校验原密码")
     public Result<String> updatePassword(
-            @Parameter(description = "包含 userId, oldPassword, newPassword 的JSON")
+            @RequestAttribute("userId") Long userId,
+            @Parameter(description = "包含 oldPassword, newPassword 的JSON")
             @RequestBody Map<String, String> params) {
 
-        Long userId = Long.valueOf(params.get("userId"));
+        // userId 以 JWT 为准，跳过前端传入，防止伪造他人身份改密
         String oldPassword = params.get("oldPassword");
         String newPassword = params.get("newPassword");
 
@@ -191,15 +193,15 @@ public class UserController {
             return Result.error(404, "用户不存在");
         }
 
-        // 校验原密码
-        if (!user.getPassword().equals(oldPassword)) {
+        // 兼容 BCrypt 与旧 MD5 密码校验
+        if (!PasswordUtils.matches(oldPassword, user.getPassword())) {
             return Result.error(400, "原密码错误，修改失败");
         }
 
-        // 构造实体并更新新密码
+        // 新密码统一使用 BCrypt 保存
         SysUser updateEntity = new SysUser();
         updateEntity.setUserId(userId);
-        updateEntity.setPassword(newPassword);
+        updateEntity.setPassword(PasswordUtils.encode(newPassword));
         userService.updateById(updateEntity);
 
         return Result.success("密码修改成功，请重新登录");

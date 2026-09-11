@@ -145,4 +145,22 @@ public class DashboardController {
                 return Result.success(list);
     }
 
+    @GetMapping("/volunteers")
+    @Operation(summary = "志愿者榜单数据", description = "返回全部活跃志愿者的脱敏数据（不含手机/邮箱/密码），供排行榜实时名次计算，任何登录用户可访问")
+    public Result<List<SysUser>> getVolunteersForRank() {
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(SysUser::getRole, "VOLUNTEER")
+                .eq(SysUser::getStatus, 1)
+                .orderByDesc(SysUser::getTotalHours)
+                .last("LIMIT 500");
+
+        List<SysUser> list = userService.list(wrapper);
+        // 榜单仅需展示姓名/头像/积分/时长，脱敏敏感字段
+        for (SysUser u : list) {
+            u.setPassword(null);
+            u.setPhone(null);
+            u.setEmail(null);
+        }
+        return Result.success(list);
+    }
 }
