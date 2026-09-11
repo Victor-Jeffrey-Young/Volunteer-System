@@ -282,6 +282,7 @@ import { Plus, ChatDotRound, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
 import { getFullAvatar } from '../../utils/file';
+import { useUserStore } from '../../stores/user';
 
 const route = useRoute();
 
@@ -298,7 +299,7 @@ const dialogWidth = computed(() => {
 });
 
 const myWishes = ref([]);
-const userId = localStorage.getItem('userId');
+const userId = useUserStore().userId; // JWT 身份，勿从 localStorage 读取
 
 const form = ref({
   requesterId: userId,

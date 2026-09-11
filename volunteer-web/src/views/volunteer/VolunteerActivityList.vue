@@ -222,13 +222,13 @@
           </div>
 
           <div class="flex gap-3">
-            <button @click="confirmSignupActivity = null"
-              class="flex-1 bg-slate-100 text-slate-700 rounded-xl py-3 text-sm font-bold hover:bg-slate-50 transition-colors">
+            <button @click="confirmSignupActivity = null" :disabled="submittingSignup"
+              class="flex-1 bg-slate-100 text-slate-700 rounded-xl py-3 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
               取消
             </button>
-            <button @click="confirmSignup"
-              class="flex-1 bg-orange-600 text-white rounded-xl py-3 text-sm font-bold hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/30">
-              确认报名
+            <button @click="confirmSignup" :disabled="submittingSignup"
+              class="flex-1 bg-orange-600 text-white rounded-xl py-3 text-sm font-bold hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/30 disabled:opacity-60 disabled:cursor-not-allowed">
+              {{ submittingSignup ? '提交中...' : '确认报名' }}
             </button>
           </div>
         </div>
@@ -300,6 +300,7 @@ const activeTab = ref('全部');
 const statusFilter = ref('全部');
 const confirmSignupActivity = ref(null);
 const signupSuccessActivity = ref(null);
+const submittingSignup = ref(false);
 const activities = ref([]);
 const registeredIds = ref(new Set());
 const userSkills = ref([]);
@@ -361,10 +362,10 @@ const fetchData = async () => {
     activities.value = res.data?.records || [];
     total.value = res.data?.total || 0;
 
-    const uid = userStore.userId || localStorage.getItem('userId');
+    const uid = userStore.userId;
     if (uid) {
-      // 1. 获取已报名 ID
-      const regRes = await activityApi.getMySignups(uid);
+      // 1. 获取已报名 ID（身份由后端从 JWT 解析）
+      const regRes = await activityApi.getMySignups();
       const allRegs = regRes.data || [];
 
       // 只有处于 待审(0)、通过(1)、完结(3)、签到(5)、签退(6) 状态才视为“已占用”
@@ -456,16 +457,18 @@ const handleSignup = (activity) => {
 };
 
 const confirmSignup = async () => {
-  if (confirmSignupActivity.value) {
-    try {
-      const uid = userStore.userId || localStorage.getItem('userId');
-      await activityApi.signup(uid, confirmSignupActivity.value.activityId);
-      signupSuccessActivity.value = confirmSignupActivity.value;
-      confirmSignupActivity.value = null;
-      fetchData();
-    } catch (error) {
-      console.error("Signup error:", error);
-    }
+  // 请求期间禁用按钮，防止双击重复提交 (后端另有锁+唯一索引兜底)
+  if (submittingSignup.value || !confirmSignupActivity.value) return;
+  submittingSignup.value = true;
+  try {
+    await activityApi.signup(confirmSignupActivity.value.activityId);
+    signupSuccessActivity.value = confirmSignupActivity.value;
+    confirmSignupActivity.value = null;
+    fetchData();
+  } catch (error) {
+    console.error("Signup error:", error);
+  } finally {
+    submittingSignup.value = false;
   }
 };
 </script>

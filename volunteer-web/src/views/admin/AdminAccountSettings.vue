@@ -78,15 +78,15 @@ import { useRouter } from 'vue-router';
 import { Warning } from '@element-plus/icons-vue';
 import request from '../../utils/request';
 import { getFullAvatar } from '../../utils/file';
+import { useUserStore } from '../../stores/user';
 
 const router = useRouter();
+const userStore = useUserStore();
 const activeTab = ref('info');
-const userId = localStorage.getItem('userId');
 const saving = ref(false);
 const fileInput = ref(null);
 
 const profileForm = ref({
-  userId: userId || '',
   username: '加载中...',
   realName: '',
   phone: '',
@@ -98,7 +98,8 @@ const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
 const fetchUserInfo = async () => {
   try {
-    const res = await request.get(`/api/user/info?userId=${userId}`);
+    // 后端从 JWT 解析身份，无需再传 userId
+    const res = await request.get('/api/user/info');
     profileForm.value = res.data;
   } catch (error) { console.error(error); }
 };
@@ -140,12 +141,11 @@ const submitPassword = async () => {
   
   try {
     await request.put('/api/user/password', {
-      userId,
       oldPassword: pwdForm.value.oldPassword,
       newPassword: pwdForm.value.newPassword
     });
     ElMessage.success('密码修改成功，请重新登录');
-    localStorage.clear();
+    userStore.logout(); // 同时清理 Pinia 中的 token/role/user 与本地缓存
     router.push('/login');
   } catch (e) {}
 };

@@ -189,6 +189,7 @@ import {
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
+import { useUserStore } from '../../stores/user';
 
 const loading = ref(false);
 const noticeList = ref([]);
@@ -224,7 +225,7 @@ const fetchNotices = async (page = 1) => {
 };
 
 const openAdd = () => {
-  form.value = { noticeId: null, title: '', type: 1, content: '', publisherId: localStorage.getItem('userId') };
+  form.value = { noticeId: null, title: '', type: 1, content: '', publisherId: useUserStore().userId };
   dialogVisible.value = true;
 };
 

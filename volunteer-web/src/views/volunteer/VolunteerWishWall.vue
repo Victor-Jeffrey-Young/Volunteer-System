@@ -126,12 +126,13 @@ import { ref, onMounted, watch } from 'vue';
 import { User, Location } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
+import { useUserStore } from '../../stores/user';
 
 const activeTab = ref('pool');
 const loading = ref(false);
 const wishPool = ref([]);
 const myWishes = ref([]);
-const userId = localStorage.getItem('userId');
+const userId = useUserStore().userId; // JWT 身份，勿从 localStorage 读取
 
 // 路由
 const fetchPool = async () => {

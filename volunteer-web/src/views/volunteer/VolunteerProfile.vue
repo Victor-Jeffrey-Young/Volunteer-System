@@ -640,7 +640,7 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue';
 import { useUserStore } from '../../stores/user';
-import { activityApi, leaderboardApi, userApi, wishApi } from '../../api/modules';
+import { activityApi, dashboardApi, wishApi } from '../../api/modules';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
 import html2canvas from 'html2canvas';
@@ -857,7 +857,6 @@ const submitProfile = async () => {
   savingProfile.value = true;
   try {
     const submitData = {
-      userId: userStore.userId || localStorage.getItem('userId'),
       realName: user.value.name,
       phone: user.value.phone,
       email: user.value.email,
@@ -932,7 +931,6 @@ const submitPassword = async () => {
   changingPassword.value = true;
   try {
     const submitData = {
-      userId: userStore.userId || localStorage.getItem('userId'),
       oldPassword: passwordForm.value.oldPassword,
       newPassword: passwordForm.value.newPassword
     };
@@ -969,19 +967,18 @@ const startScan = async () => {
         const record = recentActivities.value.find(r => r.activityId === scannedId);
         if (!record) return ElMessage.error('扫码失败：您未报名该活动或申请未通过');
 
-        const userId = userStore.userId || localStorage.getItem('userId');
         try {
           if (record.status === 1) {
-            await activityApi.sign(userId, record.regId);
+            await activityApi.sign(record.regId);
             ElMessage.success('签到成功！');
           } else if (record.status === 5) {
-            await activityApi.signOut(userId, record.regId);
+            await activityApi.signOut(record.regId);
             ElMessage.success('签退成功！');
           } else {
             return ElMessage.warning('当前状态无需打卡');
           }
           scanSuccess.value = true;
-          const res = await activityApi.getMySignups(userId);
+          const res = await activityApi.getMySignups();
           recentActivities.value = res.data || [];
         } catch (e) {
           console.error(e);
@@ -1015,7 +1012,7 @@ const handleLogout = () => {
 };
 
 onMounted(async () => {
-  const effectiveUserId = userStore.userId || localStorage.getItem('userId');
+  const effectiveUserId = userStore.userId;
   if (!userStore.user && effectiveUserId) await userStore.fetchCurrentUser();
 
   if (userStore.user) {
@@ -1056,8 +1053,8 @@ onMounted(async () => {
 
   if (effectiveUserId) {
     try {
-      // 1. 获取活动记录
-      const res = await activityApi.getMySignups(effectiveUserId);
+      // 1. 获取活动记录（身份由后端从 JWT 解析）
+      const res = await activityApi.getMySignups();
       recentActivities.value = res.data || [];
 
       // 2. 获取微心愿记录
@@ -1070,8 +1067,8 @@ onMounted(async () => {
       user.value.stats.activities = completedActivities + completedWishes;
 
       // 获取全量志愿者列表用于计算真实排名
-      const allVolRes = await userApi.getAllVolunteers();
-      const allVols = allVolRes.data?.records || [];
+      const allVolRes = await dashboardApi.getVolunteerList();
+      const allVols = allVolRes.data || [];
 
       if (allVols.length > 0) {
         // 计算积分排名

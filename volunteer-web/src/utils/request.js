@@ -10,33 +10,13 @@ const request = axios.create({
 // ... 下面的请求拦截器（包含时间戳清缓存）和响应拦截器保持不变 ...
 request.interceptors.request.use(
     config => {
+        // 仅携带 token（真正被后端信任的凭证）。
+        // 不再从 localStorage 注入 Role / userId 请求头——身份只由后端解析 JWT，
+        // 客户端头里伪造的角色/用户 ID 一律无效。
         const token = localStorage.getItem('token');
-        const role = localStorage.getItem('role');
-        const userId = localStorage.getItem('userId');  // 获取 userId
-
         if (token) {
             config.headers['Authorization'] = token;
         }
-
-        if (userId) {
-            config.headers['userId'] = userId;                       // 自动注入 userId
-        }
-
-        // 我们通过请求管理员的用户列表接口（拿全量数据）并在前端手动排序来计算真实名次。
-        if (role) {
-            const adminPaths = [
-                '/api/shop/admin/page', 
-                '/api/shop/admin/record/page',
-                '/api/user/page'
-            ];
-            
-            if (adminPaths.some(path => config.url.includes(path))) {
-                config.headers['Role'] = 'ADMIN'; 
-            } else {
-                config.headers['Role'] = role;
-            }
-        }
-
 
         if (config.method.toLowerCase() === 'get') {
             config.params = {

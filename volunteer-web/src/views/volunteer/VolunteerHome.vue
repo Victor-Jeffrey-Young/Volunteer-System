@@ -68,8 +68,7 @@ const handleSignup = (activity) => {
 const confirmSignup = async () => {
   if (confirmSignupActivity.value) {
     try {
-      const uid = userStore.userId || localStorage.getItem('userId');
-      await activityApi.signup(uid, confirmSignupActivity.value.activityId);
+      await activityApi.signup(confirmSignupActivity.value.activityId);
       signupSuccessActivity.value = confirmSignupActivity.value;
       confirmSignupActivity.value = null;
       fetchData();
@@ -268,7 +267,7 @@ const getCategoryCover = (activity) => {
                 <div class="h-8 w-8 rounded-full bg-white/20 overflow-hidden">
                   <img :src="getFullAvatar(user.avatar)" alt="avatar" class="w-full h-full object-cover" />
                 </div>
-                <div class="flex-1 text-sm font-medium truncate">{{ user.real_name }}</div>
+                <div class="flex-1 text-sm font-medium truncate">{{ user.real_name || user.username || '志愿者' }}</div>
                 <div class="text-sm font-bold text-orange-200">{{ user.points || 0 }} 分</div>
               </div>
             </div>

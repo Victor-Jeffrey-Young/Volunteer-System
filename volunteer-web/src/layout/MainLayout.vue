@@ -139,7 +139,7 @@ const navigateTo = (path) => {
 
 const handleLogout = () => {
   ElMessageBox.confirm('确定要退出管理系统吗？', '提示', { type: 'warning' }).then(() => {
-    localStorage.clear();
+    userStore.logout(); // 同时清理 Pinia 中的 token/role/user 与本地缓存
     router.push('/login');
     ElMessage.success('已安全退出');
   });

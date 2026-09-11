@@ -235,6 +235,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
 import { activityApi } from '../../api/modules';
+import { useUserStore } from '../../stores/user';
 import { Location, Clock, User, Check, Close, Warning, Search } from '@element-plus/icons-vue';
 import QRCode from 'qrcode';
 
@@ -243,7 +244,9 @@ const isMobile = ref(window.innerWidth <= 768);
 const loading = ref(false);
 const showAddForm = ref(false);
 const handleResize = () => { isMobile.value = window.innerWidth <= 768; };
-const userRole = localStorage.getItem('role');
+const userStore = useUserStore();
+// 角色以服务端回灌为准（JWT），不再读取 localStorage
+const userRole = computed(() => userStore.role);
 const activityList = ref([]);
 const total = ref(0);
 
@@ -289,8 +292,8 @@ const fetchActivities = async () => {
     activityList.value = res.data?.records || [];
     total.value = res.data?.total || 0;
 
-    if (userRole === 'VOLUNTEER') {
-      const userId = localStorage.getItem('userId');
+    if (userRole.value === 'VOLUNTEER') {
+      const userId = userStore.userId;
       const myRes = await request.get(`/api/reg/my?userId=${userId}`);
       if (myRes.data && Array.isArray(myRes.data)) {
         const activeIds = myRes.data
@@ -317,7 +320,7 @@ const handlePageChange = (page) => {
 };
 
 const handleApply = async (activityId) => {
-  const userId = localStorage.getItem('userId');
+  const userId = userStore.userId;
   if (!userId) return ElMessage.error('登录状态失效，请重新登录');
   try {
     const res = await request.post(`/api/reg/apply?userId=${userId}&activityId=${activityId}`);

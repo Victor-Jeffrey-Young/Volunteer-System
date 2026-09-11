@@ -93,7 +93,7 @@
       >
         <div class="relative aspect-square overflow-hidden bg-slate-50 flex items-center justify-center p-6 group-hover:bg-slate-100 transition-colors duration-300">
           <img
-            :src="item.image || '../public/no_goods.png'"
+            :src="item.image || '/no_goods.png'"
             :alt="item.name"
             class="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110 drop-shadow-md mix-blend-multiply"
           />
@@ -156,7 +156,7 @@
             :key="record.recordId"
             class="flex gap-4 items-start border-b border-slate-50 pb-4"
           >
-            <img :src="record.goodsImage || '../public/no_goods.png'" alt="item" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100" />
+            <img :src="record.goodsImage || '/no_goods.png'" alt="item" class="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-100" />
             <div class="flex-1">
               <div class="flex justify-between items-start">
                 <h4 class="font-bold text-sm text-slate-900">{{ record.goodsName }}</h4>
@@ -393,9 +393,8 @@ const fetchData = async () => {
 const fetchHistory = async () => {
   if (!userStore.userId) return;
   try {
-    const res = await mallApi.getExchangeRecords(userStore.userId);
-    const allRecords = res.data?.records || [];
-    exchangeRecords.value = allRecords.filter(r => String(r.userId) === String(userStore.userId));
+    const res = await mallApi.getExchangeRecords();
+    exchangeRecords.value = res.data?.records || [];
   } catch (error) {
     console.error("Fetch history error:", error);
   }

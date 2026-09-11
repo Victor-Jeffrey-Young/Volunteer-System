@@ -192,6 +192,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
 import { getLevelInfo } from '../../utils/levelRules';
+import { useUserStore } from '../../stores/user';
 import { getFullAvatar } from '../../utils/file';
 
 const loading = ref(false);
@@ -204,7 +205,7 @@ const searchName = ref('');
 const searchRole = ref('');
 const searchStatus = ref(null);
 
-const currentLoginId = localStorage.getItem('userId');
+const currentLoginId = useUserStore().userId; // JWT 身份
 
 const fetchUserList = async (page = 1) => {
   if (typeof page === 'number') currentPage.value = page;

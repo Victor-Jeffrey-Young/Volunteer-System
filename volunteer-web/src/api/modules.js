@@ -18,16 +18,15 @@ export const activityApi = {
 			status: (params?.status === '全部' || params?.status === null) ? undefined : params?.status
 		}
 	}),
-	signup: (userId, activityId) => request.post('/api/reg/apply', null, {
-		params: { userId, activityId }
+	// 报名/打卡身份一律由后端从 JWT 解析，前端不再传 userId
+	signup: (activityId) => request.post('/api/reg/apply', null, {
+		params: { activityId }
 	}),
-	getMySignups: (userId) => request.get('/api/reg/my', {
-		params: { userId }
-	}),
+	getMySignups: () => request.get('/api/reg/my'),
 
 	// 签到/签退
-	sign: (userId, regId) => request.put('/api/reg/sign', null, { params: { userId, regId } }),
-	signOut: (userId, regId) => request.put('/api/reg/sign-out', null, { params: { userId, regId } })
+	sign: (regId) => request.put('/api/reg/sign', null, { params: { regId } }),
+	signOut: (regId) => request.put('/api/reg/sign-out', null, { params: { regId } })
 };
 
 // 公告相关 API
@@ -41,14 +40,16 @@ export const announcementApi = {
 
 // 积分商城 API
 export const mallApi = {
-	getProducts: () => request.get('/api/shop/admin/page', {
+	// 商品大厅（登录即可浏览，非管理员端点）
+	getProducts: () => request.get('/api/shop/page', {
 		params: { current: 1, size: 100 }
 	}),
 	exchange: (userId, goodsId) => request.post('/api/shop/exchange', null, {
 		params: { userId, goodsId }
 	}),
-	getExchangeRecords: (userId) => request.get('/api/shop/admin/record/page', {
-		params: { userId, current: 1, size: 100 }
+	// 当前用户（JWT 身份）自己的兑换记录
+	getExchangeRecords: () => request.get('/api/shop/my-record', {
+		params: { current: 1, size: 100 }
 	})
 };
 
@@ -61,12 +62,14 @@ export const leaderboardApi = {
 
 // 数据看板 API
 export const dashboardApi = {
-	getBaseData: () => request.get('/api/dashboard/base')
+	getBaseData: () => request.get('/api/dashboard/base'),
+	// 志愿者榜单一览（脱敏），供排行榜页与个人资料实时名次计算
+	getVolunteerList: () => request.get('/api/dashboard/volunteers')
 };
 
 // 用户信息 API
 export const userApi = {
-	getUserInfo: (userId) => request.get('/api/user/info', { params: { userId } }),
+	getUserInfo: () => request.get('/api/user/info'),
 	// 头像上传接口
 	uploadAvatar: (file) => {
 		const formData = new FormData();
@@ -75,10 +78,6 @@ export const userApi = {
 			headers: { 'Content-Type': 'multipart/form-data' }
 		});
 	},
-	// 获取所有志愿者列表用于前端计算排名
-	getAllVolunteers: () => request.get('/api/user/page', {
-		params: { current: 1, size: 500, role: 'VOLUNTEER' }
-	}),
 	// 资料更新与安全中心
 	updateProfile: (data) => request.put('/api/user/profile', data),
 	updatePassword: (data) => request.put('/api/user/password', data)

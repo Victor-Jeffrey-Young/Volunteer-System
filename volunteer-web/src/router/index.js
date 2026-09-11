@@ -1,5 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { useUserStore } from '../stores/user';
+
+// 按角色返回对应首页，角色来自服务端回灌（JWT 签发，不被 localStorage 篡改）
+// 同时供根路径分流与 404 页面的“返回首页”按钮复用
+export function roleHome(role) {
+    if (role === 'ADMIN') return '/admin/home';
+    if (role === 'VOLUNTEER') return '/volunteer/home';
+    if (role === 'RESIDENT') return '/resident/wishes';
+    return '/login';
+}
 
 const routes = [
     {
@@ -8,16 +18,9 @@ const routes = [
         component: () => import('../views/Login.vue')
     },
     {
-        // 根路径分流逻辑
+        // 根路径分流：角色以 userStore.role 为准（服务端回灌）
         path: '/',
-        redirect: () => {
-            const role = localStorage.getItem('role');
-            if (!role) return '/login';
-            if (role === 'ADMIN') return '/admin/home';
-            if (role === 'VOLUNTEER') return '/volunteer/home';
-            if (role === 'RESIDENT') return '/resident/home';
-            return '/login';
-        }
+        redirect: () => roleHome(useUserStore().role)
     },
     {
         // 管理员后台路由分组
@@ -65,6 +68,12 @@ const routes = [
             { path: 'wishes', name: 'ResidentWishes', component: () => import('../views/resident/ResidentWishManage.vue') },
             { path: 'profile', name: 'ResidentProfile', component: () => import('../views/resident/ResidentProfile.vue') },
         ]
+    },
+    {
+        // 兜底路由：必须放在最后，未匹配到任何页面时渲染 404
+        path: '/:pathMatch(.*)*',
+        name: 'NotFound',
+        component: () => import('../views/NotFound.vue')
     }
 ];
 
@@ -74,9 +83,9 @@ const router = createRouter({
 });
 
 // 全局前置路由守卫
-router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
+router.beforeEach(async (to, from, next) => {
+    const userStore = useUserStore();
+    const token = userStore.token || localStorage.getItem('token');
 
     // 1. 公开页面处理
     if (to.path === '/login') {
@@ -90,27 +99,28 @@ router.beforeEach((to, from, next) => {
         return;
     }
 
-    // 3. 严格角色校验 (RBAC)
+    // 3. 身份以服务端回灌为准：刷新/直达时先拉取当前用户，
+    //    角色判定不看 localStorage，杜绝伪造 role 切换界面
+    await userStore.loadCurrentUser().catch(() => {});
+
+    const role = userStore.role;
+
+    // 4. 根路径兜底分流
+    if (to.path === '/') {
+        next(roleHome(role));
+        return;
+    }
+
+    // 5. 严格角色校验 (RBAC)
     const requiredRole = to.meta.requiresRole;
-    
+
     // 如果目标页面要求特定角色
     if (requiredRole) {
         if (role !== requiredRole) {
             ElMessage.error(`权限不足！您的角色是 ${role}，无法访问该区域`);
-            // 互斥跳转：管理员去后台，志愿者去前台，居民去居民端
-            if (role === 'ADMIN') return next('/admin/home');
-            if (role === 'VOLUNTEER') return next('/volunteer/home');
-            if (role === 'RESIDENT') return next('/resident/wishes');
-            return next('/login');
+            next(roleHome(role));
+            return;
         }
-    }
-
-    // 4. 默认分流（如果访问根路径或其他未定义路径）
-    if (to.path === '/') {
-        if (role === 'ADMIN') return next('/admin/home');
-        if (role === 'VOLUNTEER') return next('/volunteer/home');
-        if (role === 'RESIDENT') return next('/resident/wishes');
-        return next('/login');
     }
 
     next();

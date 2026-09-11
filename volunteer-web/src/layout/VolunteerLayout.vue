@@ -52,7 +52,7 @@ const fetchLiveNotifications = async () => {
 };
 
 const markAllAsRead = async () => {
-  const uid = userStore.userId || localStorage.getItem('userId');
+  const uid = userStore.userId;
   if (!uid) return;
   
   try {

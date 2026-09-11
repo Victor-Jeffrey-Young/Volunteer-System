@@ -128,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   Users, 
@@ -145,7 +145,6 @@ import { getFullAvatar } from '../../utils/file';
 import * as echarts from 'echarts';
 
 const router = useRouter();
-const timeRange = ref('7d');
 const todoList = ref([]);
 const trendData = ref([]);
 const maxTrendValue = ref(1);
@@ -261,6 +260,15 @@ onMounted(() => {
     renderBarChart();
   }, 300);
   window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  // 组件卸载时，务必移除全局监听器，防止内存泄漏
+  window.removeEventListener('resize', handleResize);
+
+  // 销毁 ECharts 实例，释放 WebGL/Canvas 资源
+  if (pieChartInstance) pieChartInstance.dispose();
+  if (barChartInstance) barChartInstance.dispose();
 });
 </script>
 

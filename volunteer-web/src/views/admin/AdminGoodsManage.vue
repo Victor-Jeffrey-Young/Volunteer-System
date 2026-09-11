@@ -278,10 +278,10 @@ const form = ref({
   goodsId: null, name: '', category: '', description: '', pointsRequired: 100, stock: 10, image: ''
 });
 
-// 让 el-upload 携带 Token 和角色，穿透后端的拦截器
+// 让 el-upload 携带 Token 穿透后端拦截器（角色由后端解析 JWT，不走头）
+// 与 utils/request.js 保持一致：直接传原始 token，不加 Bearer 前缀
 const uploadHeaders = {
-  Authorization: 'Bearer ' + localStorage.getItem('token'),
-  Role: localStorage.getItem('role')
+  Authorization: localStorage.getItem('token')
 };
 
 const rules = {

@@ -20,7 +20,7 @@
         </div>
         <div class="flex items-center gap-4">
           <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-600 shrink-0 bg-slate-700">
-            <img :src="userStore.user?.avatar || '../public/default-Avatar.png'" alt="Me" class="w-full h-full object-cover" />
+            <img :src="userStore.user?.avatar || '/default-Avatar.png'" alt="Me" class="w-full h-full object-cover" />
           </div>
           <div>
             <div class="font-bold text-lg flex items-center gap-2">
@@ -48,15 +48,6 @@
 
     <!-- Controls -->
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-      <div class="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
-        <button
-          @click="timeframe = 'all'"
-          class="flex-1 sm:flex-none px-6 py-2 text-sm font-medium rounded-lg transition-colors bg-white text-slate-900 shadow-sm"
-        >
-          全站榜单
-        </button>
-      </div>
-
       <div class="flex items-center gap-2 w-full sm:w-auto">
         <span class="text-sm text-slate-500 font-medium whitespace-nowrap">排序依据：</span>
         <select
@@ -225,7 +216,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue';
-import { leaderboardApi, userApi } from '../../api/modules'; // 引入 userApi
+import { dashboardApi } from '../../api/modules';
 import { useUserStore } from '../../stores/user';
 import { getFullAvatar } from '../../utils/file';
 import { getLevelInfo } from '../../utils/levelRules';
@@ -237,7 +228,6 @@ import {
   Minus,
 } from 'lucide-vue-next';
 
-const timeframe = ref('month');
 const category = ref('points');
 const leaderboardData = ref([]);
 const userStore = useUserStore();
@@ -269,10 +259,10 @@ const getTrend = (user, currentRank) => {
 const fetchData = async () => {
   loading.value = true;
   try {
-    const res = await userApi.getAllVolunteers();
-    const allUsers = res.data?.records || [];
+    const res = await dashboardApi.getVolunteerList();
+    const allUsers = res.data || [];
 
-    const effectiveUserId = userStore.userId || localStorage.getItem('userId');
+    const effectiveUserId = userStore.userId;
 
     let sortedList = [];
     if (category.value === 'points') {
@@ -309,15 +299,6 @@ onMounted(fetchData);
 watch(category, () => {
   fetchData();
 });
-const renderTrendIcon = (trend, change) => {
-  if (trend === 'up') {
-    return { component: ArrowUp, color: 'text-emerald-500', change };
-  }
-  if (trend === 'down') {
-    return { component: ArrowDown, color: 'text-red-500', change };
-  }
-  return { component: Minus, color: 'text-slate-400', change: 0 };
-};
 
 const getRankStyle = (rank) => {
   switch (rank) {
