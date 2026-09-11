@@ -68,7 +68,7 @@ public class ActivityControllerTest {
     }
 
     @Test
-    @DisplayName("场景2：越权删除拦截 - 验证拦截 code 403")
+    @DisplayName("场景2：越权删除拦截 - 志愿者 Token 被 AdminInterceptor 拦下")
     void deleteActivity_Forbidden() throws Exception {
         Claims claims = mock(Claims.class);
         when(jwtUtils.parseToken(anyString())).thenReturn(claims);
@@ -76,10 +76,10 @@ public class ActivityControllerTest {
 
         mockMvc.perform(delete("/api/activity/100")
                 .header("Authorization", "volunteer-token")
-                .header("Role", "VOLUNTEER"))
-                .andExpect(status().isOk()) // 🚨 修正断言：Controller 返回的是 HTTP 200
-                .andExpect(jsonPath("$.code").value(403))
-                .andExpect(jsonPath("$.msg").value("无权删除"));
+                // 伪造管理员角色头：修复后该请求头不再被任何代码读取
+                .header("Role", "ADMIN"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
 
         verify(activityService, never()).removeById(anyLong());
     }

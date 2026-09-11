@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -72,7 +73,7 @@ public class SysRegistrationServiceTest {
     @Test
     @DisplayName("场景1：申请报名 - 成功并增加名额")
     void applyActivity_Success() {
-        when(activityService.getById(10L)).thenReturn(mockActivity);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
         // 模拟没有重复报名
         when(registrationMapper.selectCount(any())).thenReturn(0L);
 
@@ -89,7 +90,7 @@ public class SysRegistrationServiceTest {
     @DisplayName("场景2：申请报名 - 名额已满拦截 (400)")
     void applyActivity_Full() {
         mockActivity.setCurrentNum(10); // 已满
-        when(activityService.getById(10L)).thenReturn(mockActivity);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
 
         ServiceException ex = assertThrows(ServiceException.class, () -> {
             registrationService.applyActivity(1L, 10L);
@@ -97,6 +98,41 @@ public class SysRegistrationServiceTest {
 
         assertEquals(400, ex.getCode());
         assertEquals("名额已满！", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("场景2b：申请报名 - 已有签退待结算记录(status=6)时拦截 (409)")
+    void applyActivity_DuplicateStatus6() {
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        // 模拟已存在一条 status=6 (已签退待结算) 的有效报名
+        when(registrationMapper.selectCount(any())).thenReturn(1L);
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> {
+            registrationService.applyActivity(1L, 10L);
+        });
+
+        assertEquals(409, ex.getCode());
+        // 不应插入任何记录，也不应增加名额
+        verify(registrationMapper, never()).insert(any(SysRegistration.class));
+        verify(activityService, never()).updateById(any(SysActivity.class));
+    }
+
+    @Test
+    @DisplayName("场景2c：申请报名 - 唯一索引兜底冲突时转为 409")
+    void applyActivity_DuplicateKeyFallback() {
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        // 判重通过 (count=0)，但插入时撞上数据库唯一索引
+        when(registrationMapper.selectCount(any())).thenReturn(0L);
+        when(registrationMapper.insert(any(SysRegistration.class)))
+                .thenThrow(new DuplicateKeyException("Duplicate entry '1-10-1' for key 'uk_user_activity_active'"));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> {
+            registrationService.applyActivity(1L, 10L);
+        });
+
+        assertEquals(409, ex.getCode());
+        // 插入失败后事务应回滚，不再更新活动人数
+        verify(activityService, never()).updateById(any(SysActivity.class));
     }
 
     @Test
@@ -121,7 +157,7 @@ public class SysRegistrationServiceTest {
         // 模拟已审核通过状态
         mockReg.setStatus(1);
         when(registrationMapper.selectById(50L)).thenReturn(mockReg);
-        when(activityService.getById(10L)).thenReturn(mockActivity);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
 
         registrationService.cancelRegistration(50L, 1L);
 
@@ -139,7 +175,7 @@ public class SysRegistrationServiceTest {
     void auditRegistration_Reject() {
         mockReg.setStatus(0); // 待审核
         when(registrationMapper.selectById(50L)).thenReturn(mockReg);
-        when(activityService.getById(10L)).thenReturn(mockActivity);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
 
         registrationService.auditRegistration(50L, 2, "不符合要求");
 

@@ -11,7 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.util.DigestUtils;
+
+import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,6 +28,8 @@ import static org.mockito.Mockito.*;
  */
 @ExtendWith(MockitoExtension.class)
 public class SysUserServiceTest {
+
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
 
     @Mock
     private SysUserMapper userMapper;
@@ -37,7 +44,7 @@ public class SysUserServiceTest {
         mockUser = new SysUser();
         mockUser.setUserId(1L);
         mockUser.setUsername("testuser");
-        mockUser.setPassword("123456");
+        mockUser.setPassword(PASSWORD_ENCODER.encode("123456"));
         mockUser.setRealName("测试用户");
         mockUser.setStatus(1);
         mockUser.setRole("VOLUNTEER");
@@ -56,6 +63,39 @@ public class SysUserServiceTest {
         SysUser result = userService.login("testuser", "123456");
         assertNotNull(result);
         assertEquals("测试用户", result.getRealName());
+    }
+
+    @Test
+    @DisplayName("场景1.1：兼容旧 MD5 密码并在登录后升级为 BCrypt")
+    void login_LegacyMd5Password_AutoUpgradesToBcrypt() {
+        String legacyMd5 = DigestUtils.md5DigestAsHex("123456".getBytes(StandardCharsets.UTF_8));
+        mockUser.setPassword(legacyMd5);
+        org.mockito.Mockito.lenient().when(userMapper.selectOne(any())).thenReturn(mockUser);
+        org.mockito.Mockito.lenient().when(userMapper.selectOne(any(), anyBoolean())).thenReturn(mockUser);
+        when(userMapper.updatePasswordIfCurrent(eq(1L), eq(legacyMd5), anyString())).thenReturn(1);
+
+        SysUser result = userService.login("testuser", "123456");
+
+        assertNotNull(result);
+        ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+        verify(userMapper).updatePasswordIfCurrent(eq(1L), eq(legacyMd5), captor.capture());
+        assertTrue(PASSWORD_ENCODER.matches("123456", captor.getValue()));
+    }
+
+    @Test
+    @DisplayName("场景1.2：旧密码升级期间发生并发改密则拒绝本次登录")
+    void login_LegacyMd5MigrationConflict_RejectsStaleLogin() {
+        String legacyMd5 = DigestUtils.md5DigestAsHex("123456".getBytes(StandardCharsets.UTF_8));
+        mockUser.setPassword(legacyMd5);
+        org.mockito.Mockito.lenient().when(userMapper.selectOne(any())).thenReturn(mockUser);
+        org.mockito.Mockito.lenient().when(userMapper.selectOne(any(), anyBoolean())).thenReturn(mockUser);
+        when(userMapper.updatePasswordIfCurrent(eq(1L), eq(legacyMd5), anyString())).thenReturn(0);
+
+        ServiceException exception = assertThrows(
+                ServiceException.class,
+                () -> userService.login("testuser", "123456"));
+
+        assertEquals(400, exception.getCode());
     }
 
     @Test
@@ -113,5 +153,6 @@ public class SysUserServiceTest {
         assertNotNull(newUser.getUserId(), "注册后用户ID不应为空");
         assertEquals(99L, newUser.getUserId());
         assertEquals("VOLUNTEER", newUser.getRole());
+        assertTrue(PASSWORD_ENCODER.matches("pwd", newUser.getPassword()), "注册密码必须以 BCrypt 保存");
     }
 }
