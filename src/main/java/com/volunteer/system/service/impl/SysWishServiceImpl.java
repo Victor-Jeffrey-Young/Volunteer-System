@@ -67,6 +67,29 @@ public class SysWishServiceImpl extends ServiceImpl<SysWishMapper, SysWish> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void auditWish(Long wishId, Integer status, String remarks) {
+        if (status == null || (status != STATUS_OPEN && status != STATUS_REJECTED)) {
+            throw new ServiceException(400, "审核结果只能是 1-通过 或 4-驳回");
+        }
+        SysWish wish = this.getById(wishId);
+        if (wish == null) {
+            throw new ServiceException(404, "心愿不存在");
+        }
+
+        // 真正的闸门：只有「待审核(0)」的记录能被审核。
+        // 早期实现是 getById → setStatus → updateById，没有状态前置条件，
+        // 管理员对着已经认领/已结算的心愿再点一次审核就能把状态强行改掉：
+        // 实测把 status=2（已认领，volunteer_id=95）的心愿「驳回」成 4，
+        // 之后再审核回 1，由于认领要求 volunteer_id IS NULL、结算又只接受 2/6，
+        // 这条心愿既不能被认领也不能被结算，直接卡死。
+        if (baseMapper.auditIfPending(wishId, status, remarks) == 0) {
+            throw new ServiceException(409, "该心愿当前状态不可审核，或已被处理过");
+        }
+        log.info("心愿 {} 审核完成，目标状态 {}", wishId, status);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void claimWish(Long wishId, Long volunteerId) {
         SysWish wish = this.getById(wishId);
         if (wish == null) {

@@ -241,25 +241,21 @@ public class WishController {
 
     /**
      * 管理员审核心愿内容
+     *
+     * 状态流转规则（谁能审、此刻能不能审）收敛在 SysWishService.auditWish 里：
+     * 这里曾经是 getById → setStatus → updateById，没有状态前置条件，
+     * 对已认领的心愿再点一次审核就能把状态强行改掉（实测会把 status=2 改成 4，
+     * 认领关系与状态不一致，心愿随之卡死）。
      */
     @PutMapping("/admin/audit")
     @RequiresAdmin
-    @Operation(summary = "[Admin] 审核心愿发布申请", description = "1-审核通过并发布, 4-拒绝发布")
+    @Operation(summary = "[Admin] 审核心愿发布申请", description = "1-审核通过并发布, 4-拒绝发布；仅待审核状态可操作")
     public Result<String> audit(
             @RequestParam Long wishId,
             @RequestParam Integer status,
             @RequestParam(required = false) String remarks) {
 
-        if (status == null || (status != 1 && status != 4)) {
-            throw new ServiceException(400, "审核结果只能是 1-通过 或 4-驳回");
-        }
-        SysWish wish = wishService.getById(wishId);
-        if (wish == null) {
-            throw new ServiceException(404, "心愿不存在");
-        }
-        wish.setStatus(status);
-        wish.setRemarks(remarks);
-        wishService.updateById(wish);
+        wishService.auditWish(wishId, status, remarks);
         return Result.success("审核操作已落地");
     }
 

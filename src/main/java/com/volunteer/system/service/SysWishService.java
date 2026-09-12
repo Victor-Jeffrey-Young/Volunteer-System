@@ -16,6 +16,9 @@ public interface SysWishService extends IService<SysWish> {
     /** 居民提交心愿：发布者身份由服务端注入，不接受前端传入 */
     void applyWish(SysWish wish, Long requesterId);
 
+    /** 管理员审核心愿：只有待审核(0)的记录能流转到 1-展示中 / 4-已驳回 */
+    void auditWish(Long wishId, Integer status, String remarks);
+
     /** 志愿者认领心愿（并发下只有一个能成功） */
     void claimWish(Long wishId, Long volunteerId);
 

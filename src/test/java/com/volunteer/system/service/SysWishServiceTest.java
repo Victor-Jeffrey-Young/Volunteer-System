@@ -91,6 +91,43 @@ public class SysWishServiceTest {
     }
 
     @Test
+    @DisplayName("审核心愿：待审核(0) 记录条件更新命中 1 行")
+    void auditWish_Pending_Audited() {
+        when(wishMapper.selectById(WISH_ID)).thenReturn(wish(0, REQUESTER_ID, null));
+        when(wishMapper.auditIfPending(WISH_ID, 1, "内容合规")).thenReturn(1);
+
+        assertDoesNotThrow(() -> wishService.auditWish(WISH_ID, 1, "内容合规"));
+
+        verify(wishMapper, times(1)).auditIfPending(WISH_ID, 1, "内容合规");
+        // 不再整体写回实体（那正是绕过状态机的原因）
+        verify(wishMapper, never()).updateById(any(SysWish.class));
+    }
+
+    @Test
+    @DisplayName("审核心愿：已被认领/已结算的记录条件更新 0 行 → 409，状态不被改写")
+    void auditWish_NotPending_Returns409() {
+        // 已被志愿者认领：status=2、volunteer_id 非空
+        when(wishMapper.selectById(WISH_ID)).thenReturn(wish(2, REQUESTER_ID, VOLUNTEER_ID));
+        when(wishMapper.auditIfPending(WISH_ID, 4, null)).thenReturn(0);
+
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> wishService.auditWish(WISH_ID, 4, null));
+
+        assertEquals(409, ex.getCode());
+        verify(wishMapper, never()).updateById(any(SysWish.class));
+    }
+
+    @Test
+    @DisplayName("审核心愿：目标状态越界（例如直接跳到 3-已达成）→ 400")
+    void auditWish_InvalidStatus() {
+        ServiceException ex = assertThrows(ServiceException.class,
+                () -> wishService.auditWish(WISH_ID, 3, null));
+
+        assertEquals(400, ex.getCode());
+        verify(wishMapper, never()).auditIfPending(anyLong(), anyInt(), any());
+    }
+
+    @Test
     @DisplayName("并发认领：条件更新命中 0 行时返回 409，不会覆盖先到的志愿者")
     void claimWish_AlreadyClaimed_Returns409() {
         when(wishMapper.selectById(WISH_ID)).thenReturn(wish(1, REQUESTER_ID, null));

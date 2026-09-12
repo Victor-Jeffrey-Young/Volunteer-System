@@ -1,23 +1,28 @@
 package com.volunteer.system.concurrency;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.controller.ActivityController;
 import com.volunteer.system.controller.ShopController;
+import com.volunteer.system.controller.WishController;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.entity.SysExchangeRecord;
 import com.volunteer.system.entity.SysGoods;
 import com.volunteer.system.entity.SysRegistration;
 import com.volunteer.system.entity.SysUser;
+import com.volunteer.system.entity.SysWish;
 import com.volunteer.system.mapper.SysActivityMapper;
 import com.volunteer.system.mapper.SysExchangeRecordMapper;
 import com.volunteer.system.mapper.SysGoodsMapper;
 import com.volunteer.system.mapper.SysRegistrationMapper;
 import com.volunteer.system.mapper.SysUserMapper;
+import com.volunteer.system.mapper.SysWishMapper;
 import com.volunteer.system.service.SysActivityService;
 import com.volunteer.system.service.SysExchangeRecordService;
 import com.volunteer.system.service.SysGoodsService;
 import com.volunteer.system.service.SysRegistrationService;
 import com.volunteer.system.service.SysUserService;
+import com.volunteer.system.service.SysWishService;
 import com.volunteer.system.utils.PasswordUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 管理端写路径的并发回归测试（真库）。
@@ -55,16 +61,19 @@ class AdminWritePathTest {
 
     @Autowired private ActivityController activityController;
     @Autowired private ShopController shopController;
+    @Autowired private WishController wishController;
     @Autowired private SysActivityService activityService;
     @Autowired private SysGoodsService goodsService;
     @Autowired private SysRegistrationService registrationService;
     @Autowired private SysExchangeRecordService exchangeRecordService;
     @Autowired private SysUserService userService;
+    @Autowired private SysWishService wishService;
     @Autowired private SysActivityMapper activityMapper;
     @Autowired private SysGoodsMapper goodsMapper;
     @Autowired private SysExchangeRecordMapper exchangeRecordMapper;
     @Autowired private SysRegistrationMapper registrationMapper;
     @Autowired private SysUserMapper userMapper;
+    @Autowired private SysWishMapper wishMapper;
 
     private static final int THREADS = 5;
 
@@ -238,6 +247,73 @@ class AdminWritePathTest {
     private long exchangeCount(Long goodsId) {
         return exchangeRecordMapper.selectCount(new LambdaQueryWrapper<SysExchangeRecord>()
                 .eq(SysExchangeRecord::getGoodsId, goodsId));
+    }
+
+    // ================================================================ 微心愿审核
+
+    @Test
+    @DisplayName("管理端审核心愿：已认领的记录不得被再次审核改写状态")
+    void adminAuditWish_rejectsNonPendingRecord() {
+        Long volunteerId = createVolunteer();
+        Long wishId = createPendingWish();
+        try {
+            // 审核通过 → 志愿者认领（status=2，认领关系已建立）
+            wishService.auditWish(wishId, 1, null);
+            wishService.claimWish(wishId, volunteerId);
+            SysWish claimed = wishMapper.selectById(wishId);
+            assertEquals(2, claimed.getStatus().intValue());
+            assertEquals(volunteerId, claimed.getVolunteerId());
+
+            // 管理员对着这条已认领的心愿再点一次「驳回」
+            ServiceException ex = assertThrows(ServiceException.class,
+                    () -> wishController.audit(wishId, 4, "误操作"));
+
+            assertEquals(409, ex.getCode());
+            SysWish after = wishMapper.selectById(wishId);
+            assertEquals(2, after.getStatus().intValue(), "状态不允许被审核接口强行改写");
+            assertEquals(volunteerId, after.getVolunteerId(), "认领关系必须保持不变");
+        } finally {
+            cleanWish(wishId);
+            deleteUser(volunteerId);
+        }
+    }
+
+    private Long createVolunteer() {
+        SysUser volunteer = new SysUser();
+        volunteer.setUsername("qa_vol_" + System.nanoTime());
+        volunteer.setPassword(PasswordUtils.encode("qa-123456"));
+        volunteer.setRealName("心愿测试志愿者");
+        volunteer.setRole("VOLUNTEER");
+        volunteer.setStatus(1);
+        volunteer.setCurrentPoints(0);
+        volunteer.setTotalPoints(0);
+        volunteer.setTotalHours(BigDecimal.ZERO);
+        userService.save(volunteer);
+        return volunteer.getUserId();
+    }
+
+    private Long createPendingWish() {
+        SysWish wish = new SysWish();
+        wish.setTitle("qa_wish_" + System.nanoTime());
+        wish.setContent("管理端写路径测试");
+        wish.setRequesterId(userId);
+        wish.setStatus(0);
+        wish.setIsLiked(0);
+        wish.setCreateTime(LocalDateTime.now());
+        wishService.save(wish);
+        return wish.getWishId();
+    }
+
+    private void cleanWish(Long wishId) {
+        if (wishId != null) {
+            wishMapper.deleteById(wishId);
+        }
+    }
+
+    private void deleteUser(Long id) {
+        if (id != null) {
+            userMapper.deleteById(id);
+        }
     }
 
     /** 与 RegistrationConcurrencyTest 相同的并发工具：N 个线程尽量同时起跑，返回成功次数 */

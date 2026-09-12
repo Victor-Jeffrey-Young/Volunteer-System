@@ -21,6 +21,24 @@ import java.math.BigDecimal;
 public interface SysWishMapper extends BaseMapper<SysWish> {
 
     /**
+     * 条件审核：只有「待审核(0)」的心愿能被审核，目标状态限定 1-展示中 / 4-已驳回。
+     *
+     * 审核是状态机的入口，必须同样遵守「先查后改要原子」的规矩：
+     * 没有前置条件时，管理员对着已认领/已结算的心愿再点一次审核就能强行改状态，
+     * 造成认领关系与状态不一致（实测：status=2 且 volunteer_id 非空的心愿被改成 4，
+     * 之后既不能被认领也不能被结算，心愿卡死）。
+     * remarks 为空时不覆盖原字段。
+     */
+    @Update("<script>" +
+            "UPDATE sys_wish SET status = #{status}" +
+            "<if test='remarks != null'>, remarks = #{remarks}</if>" +
+            " WHERE wish_id = #{wishId} AND status = 0 AND #{status} IN (1, 4)" +
+            "</script>")
+    int auditIfPending(@Param("wishId") Long wishId,
+                       @Param("status") Integer status,
+                       @Param("remarks") String remarks);
+
+    /**
      * 条件认领：只有「展示中(1) 且尚无志愿者」才允许认领。
      * 两个志愿者同时点认领时，数据库只会让其中一个 UPDATE 命中一行。
      */

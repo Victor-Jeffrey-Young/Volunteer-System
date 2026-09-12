@@ -57,22 +57,18 @@ public class AdminFinalAuditTest {
     }
 
     @Test
-    @DisplayName("补全2：心愿初审 - 验证状态机切换")
+    @DisplayName("补全2：心愿初审 - 状态流转下沉到 service 的条件更新")
     void auditWish_Success() throws Exception {
-        SysWish wish = new SysWish();
-        wish.setWishId(300L);
-        wish.setStatus(0);
-
-        when(wishService.getById(300L)).thenReturn(wish);
-
         mockMvc.perform(put("/api/wish/admin/audit")
                 .header("Authorization", "valid-token")
                 .param("wishId", "300")
                 .param("status", "1"))
                 .andExpect(status().isOk());
 
-        if (wish.getStatus() != 1) throw new AssertionError("状态未翻转");
-        verify(wishService, times(1)).updateById(wish);
+        // 状态前置条件与流转都收敛在 service 层（auditIfPending 条件更新），
+        // Controller 不再自行 getById → setStatus → updateById（那正是绕过状态机的写法）
+        verify(wishService, times(1)).auditWish(300L, 1, null);
+        verify(wishService, never()).updateById(any(SysWish.class));
     }
 
     @Test
