@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.volunteer.system.common.RequiresAdmin;
 import com.volunteer.system.common.Result;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.service.SysActivityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -87,13 +88,39 @@ public class ActivityController {
     /**
      * 修改活动信息 (管理员权限)
      * 常用于调整活动详情，或手动变更活动状态（如：招募中 -> 进行中）。
+     *
+     * 采用白名单更新：只允许改「活动自身的属性」，current_num 不在其中。
+     * 它是报名链路（行锁 + 原子语句）维护的派生计数，一旦允许客户端整体写回，
+     * 管理员拿旧表单点保存就会把并发期间的报名数覆盖掉
+     * （实测：真实有效报名数 1，提交带旧 currentNum=0 的表单后计数变成 0），
+     * 而满员判断正是 current_num >= capacity，计数被改小等于放开超额报名。
      */
     @PutMapping("/update")
     @RequiresAdmin
-    @Operation(summary = "[Admin] 修改活动信息", description = "仅管理员可调用（由 AdminInterceptor 统一鉴权）")
+    @Operation(summary = "[Admin] 修改活动信息", description = "仅管理员可调用（由 AdminInterceptor 统一鉴权）；报名人数字段不接受客户端写入")
     public Result<String> updateActivity(@RequestBody SysActivity activity) {
 
-        activityService.updateById(activity);
+        if (activity.getActivityId() == null) {
+            throw new ServiceException(400, "活动ID不能为空");
+        }
+        if (activity.getCapacity() != null && activity.getCapacity() < 1) {
+            throw new ServiceException(400, "招募人数必须大于 0");
+        }
+
+        SysActivity updateEntity = new SysActivity();
+        updateEntity.setActivityId(activity.getActivityId());
+        updateEntity.setTitle(activity.getTitle());
+        updateEntity.setContent(activity.getContent());
+        updateEntity.setType(activity.getType());
+        updateEntity.setLocation(activity.getLocation());
+        updateEntity.setStartTime(activity.getStartTime());
+        updateEntity.setEndTime(activity.getEndTime());
+        updateEntity.setCapacity(activity.getCapacity());
+        updateEntity.setRewardHours(activity.getRewardHours());
+        updateEntity.setStatus(activity.getStatus());
+        updateEntity.setRequiredSkills(activity.getRequiredSkills());
+
+        activityService.updateById(updateEntity);
         log.info("活动信息被修改，活动ID: {}", activity.getActivityId());
 
         return Result.success("修改成功");

@@ -15,6 +15,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -100,5 +102,33 @@ public class ActivityControllerTest {
                 .andExpect(jsonPath("$.code").value(200));
 
         verify(activityService, times(1)).updateById(any(SysActivity.class));
+    }
+
+    @Test
+    @DisplayName("场景3b：活动更新 - 客户端提交的 currentNum 必须被白名单丢弃")
+    void updateActivity_ignoresClientSuppliedCurrentNum() throws Exception {
+        SysActivity staleForm = new SysActivity();
+        staleForm.setActivityId(50L);
+        staleForm.setTitle("旧表单里的标题");
+        staleForm.setCapacity(5);
+        staleForm.setCurrentNum(0);   // 打开弹窗时的旧快照，真实值已被并发报名改成 1
+        staleForm.setStatus(0);
+
+        mockMvc.perform(put("/api/activity/update")
+                .header("Authorization", "admin-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(staleForm)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        org.mockito.ArgumentCaptor<SysActivity> captor = org.mockito.ArgumentCaptor.forClass(SysActivity.class);
+        verify(activityService, times(1)).updateById(captor.capture());
+
+        SysActivity written = captor.getValue();
+        assertEquals(50L, written.getActivityId());
+        assertEquals("旧表单里的标题", written.getTitle());
+        // 派生计数不在可写字段里
+        assertNull(written.getCurrentNum(), "currentNum 不允许被客户端写入");
+        assertNull(written.getCreateTime(), "createTime 同样不在白名单里");
     }
 }

@@ -380,6 +380,10 @@ const submitEdit = async () => {
 
     submitData.requiredSkills = skillsJson;
     submitData.required_skills = skillsJson;
+    // 已报名人数是报名链路维护的派生计数（后端也用白名单挡了一道）：
+    // 表单里的值可能是打开弹窗时的旧快照，带上它保存会覆盖并发期间的报名数
+    delete submitData.currentNum;
+    delete submitData.current_num;
 
     const res = await request.put('/api/activity/update', submitData);
     if (res.code === 200) {
