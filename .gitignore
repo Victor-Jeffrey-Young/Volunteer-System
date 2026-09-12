@@ -30,6 +30,9 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/
+# .vscode/ 不再忽略：tasks/launch/settings 随仓库走，换机后开箱可用
 /volunteer-web/node_modules/
 /server.log
+
+### macOS ###
+.DS_Store
