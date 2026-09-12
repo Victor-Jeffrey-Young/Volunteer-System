@@ -99,12 +99,16 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     }
 
     // 3. 签到打卡 (开始)
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void signIn(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
+        if (reg == null || reg.getUserId() == null || !reg.getUserId().equals(userId)) {
+            throw new ServiceException(403, "非法操作");
+        }
 
-        // 1. 校验报名状态
-        if (reg.getStatus() != 1) throw new ServiceException(400, "只有【审核通过】的状态才能签到");
+        // 1. 校验报名状态（只为给出准确提示，真正的闸门是下面的条件更新）
+        if (reg.getStatus() == null || reg.getStatus() != 1) throw new ServiceException(400, "只有【审核通过】的状态才能签到");
 
         // 2. 校验活动状态和时间
         SysActivity activity = activityService.getById(reg.getActivityId());
@@ -124,24 +128,30 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
             throw new ServiceException(400, "未到签到时间，请在活动开始前30分钟内签到");
         }
 
-        // 3. 执行签到
-        reg.setStatus(5); // 5-已签到
-        reg.setSignInTime(LocalDateTime.now());
-        this.updateById(reg);
+        // 3. 条件签到：并发/重复点击只会生效一次，且只写 status 与 sign_in_time
+        if (baseMapper.signInIfApproved(regId, userId) == 0) {
+            throw new ServiceException(400, "只有【审核通过】的状态才能签到");
+        }
     }
 
     // 4. 签退打卡 (结束)
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void signOut(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
-        if (reg.getStatus() != 5) throw new ServiceException(400, "请先进行签到打卡！");
+        if (reg == null || reg.getUserId() == null || !reg.getUserId().equals(userId)) {
+            throw new ServiceException(403, "非法操作");
+        }
+        if (reg.getStatus() == null || reg.getStatus() != 5) throw new ServiceException(400, "请先进行签到打卡！");
 
-        reg.setStatus(6); // 6-已签退(待发工时)
-        reg.setSignOutTime(LocalDateTime.now()); // 记录签退时间
-        this.updateById(reg);
+        // 条件签退：不再整体写回实体，避免覆盖并发期间管理员发放的工时/积分
+        if (baseMapper.signOutIfSignedIn(regId, userId) == 0) {
+            throw new ServiceException(400, "请先进行签到打卡！");
+        }
     }
 
     // 5. 发放工时与积分
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void grantHours(Long regId, BigDecimal actualHours) {
         // 入参校验：早期版本完全不校验，传负数可以「倒扣」他人工时积分，

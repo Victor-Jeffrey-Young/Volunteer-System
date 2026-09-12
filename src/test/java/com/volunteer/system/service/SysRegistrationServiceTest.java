@@ -136,19 +136,59 @@ public class SysRegistrationServiceTest {
     }
 
     @Test
-    @DisplayName("场景3：签到打卡 - 成功改变状态")
+    @DisplayName("场景3：签到打卡 - 条件更新命中后只写 status 与签到时间")
     void signIn_Success() {
         mockActivity.setStatus(1); // 活动设为进行中
-        // mock 内部调用 getById
-        // 注意：ServiceImpl 的 getById 也会调用 baseMapper
         when(registrationMapper.selectById(50L)).thenReturn(mockReg);
         when(activityService.getById(10L)).thenReturn(mockActivity);
+        when(registrationMapper.signInIfApproved(50L, 1L)).thenReturn(1);
 
         registrationService.signIn(50L, 1L);
 
-        assertEquals(5, mockReg.getStatus()); // 状态应变为 5 (已签到)
-        assertNotNull(mockReg.getSignInTime());
-        verify(registrationMapper, times(1)).updateById(mockReg);
+        verify(registrationMapper, times(1)).signInIfApproved(50L, 1L);
+        // 关键：不再整体写回实体（整体写回会覆盖并发期间管理员写入的工时/积分字段）
+        verify(registrationMapper, never()).updateById(any(SysRegistration.class));
+    }
+
+    @Test
+    @DisplayName("场景3b：并发重复签到 - 条件更新 0 行时必须失败")
+    void signIn_AlreadySigned_Rejected() {
+        mockActivity.setStatus(1);
+        when(registrationMapper.selectById(50L)).thenReturn(mockReg);
+        when(activityService.getById(10L)).thenReturn(mockActivity);
+        // 模拟第二个并发请求：状态已被别人改走
+        when(registrationMapper.signInIfApproved(50L, 1L)).thenReturn(0);
+
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.signIn(50L, 1L));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    @Test
+    @DisplayName("场景4：签退打卡 - 条件更新命中后只写 status 与签退时间")
+    void signOut_Success() {
+        mockReg.setStatus(5); // 已签到
+        when(registrationMapper.selectById(50L)).thenReturn(mockReg);
+        when(registrationMapper.signOutIfSignedIn(50L, 1L)).thenReturn(1);
+
+        registrationService.signOut(50L, 1L);
+
+        verify(registrationMapper, times(1)).signOutIfSignedIn(50L, 1L);
+        verify(registrationMapper, never()).updateById(any(SysRegistration.class));
+    }
+
+    @Test
+    @DisplayName("场景4b：并发重复签退 - 条件更新 0 行时必须失败")
+    void signOut_AlreadySignedOut_Rejected() {
+        mockReg.setStatus(5);
+        when(registrationMapper.selectById(50L)).thenReturn(mockReg);
+        when(registrationMapper.signOutIfSignedIn(50L, 1L)).thenReturn(0);
+
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.signOut(50L, 1L));
+
+        assertEquals(400, ex.getCode());
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.volunteer.system.concurrency;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.volunteer.system.common.ServiceException;
 import com.volunteer.system.entity.SysActivity;
 import com.volunteer.system.entity.SysRegistration;
 import com.volunteer.system.entity.SysUser;
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 报名链路的并发回归测试（真库 + 真多线程，不是 mock）。
@@ -153,6 +155,42 @@ class RegistrationConcurrencyTest {
         assertEquals(0, currentNum(), "名额计数不允许低于 0");
     }
 
+    @Test
+    @DisplayName("并发签到 / 并发签退同一报名：各只允许一次生效")
+    void concurrentSignInAndSignOut_areIdempotent() throws Exception {
+        registrationService.applyActivity(userId, activityId);
+        Long regId = onlyRegistrationId();
+        registrationService.auditRegistration(regId, 1, null);
+        startActivityNow();
+
+        int signInSuccess = runConcurrently(() -> registrationService.signIn(regId, userId));
+        assertEquals(1, signInSuccess, "5 个并发签到请求应当只有 1 个成功");
+        assertEquals(5, statusOf(regId));
+
+        int signOutSuccess = runConcurrently(() -> registrationService.signOut(regId, userId));
+        assertEquals(1, signOutSuccess, "5 个并发签退请求应当只有 1 个成功");
+        assertEquals(6, statusOf(regId));
+    }
+
+    @Test
+    @DisplayName("已发放工时的报名不允许再签退：状态机挡住二次发放的入口")
+    void signedOutAfterGrant_isRejected() {
+        registrationService.applyActivity(userId, activityId);
+        Long regId = onlyRegistrationId();
+        registrationService.auditRegistration(regId, 1, null);
+        startActivityNow();
+        registrationService.signIn(regId, userId);
+        registrationService.signOut(regId, userId);
+
+        registrationService.grantHours(regId, new BigDecimal("2.00"));
+        assertEquals(3, statusOf(regId), "发放后应流转到 3-已完结");
+
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.signOut(regId, userId));
+        assertEquals(400, ex.getCode(), "已完结的记录不能再签退，否则可再次发放");
+        assertEquals(3, statusOf(regId), "状态不应被改回 6");
+    }
+
     // ---------------------------------------------------------------- 工具方法
 
     /** 让 THREADS 个线程尽量同时执行同一个动作，返回成功（未抛异常）的次数 */
@@ -213,5 +251,14 @@ class RegistrationConcurrencyTest {
 
     private int currentNum() {
         return activityMapper.selectById(activityId).getCurrentNum();
+    }
+
+    /** 把活动切到「进行中」并把开始时间挪到过去，满足签到的时间窗校验 */
+    private void startActivityNow() {
+        SysActivity activity = activityMapper.selectById(activityId);
+        activity.setStatus(1);
+        activity.setStartTime(LocalDateTime.now().minusMinutes(10));
+        activity.setEndTime(LocalDateTime.now().plusHours(2));
+        activityMapper.updateById(activity);
     }
 }

@@ -50,4 +50,27 @@ public interface SysRegistrationMapper extends BaseMapper<SysRegistration> {
     int auditIfPending(@Param("regId") Long regId,
                        @Param("status") Integer status,
                        @Param("remarks") String remarks);
+
+    /**
+     * 条件签到：只有「本人的、且已审核通过(1)」的报名才能流转到 5-已签到。
+     *
+     * 签到原先写法是「getById 读 → 判断 status → updateById 整体写回」：
+     * 并发重复点击时多个请求都读到 status=1，于是每一个都返回成功（实测 5 并发 5 个 200）；
+     * 更麻烦的是整体写回会把「读快照到写回之间」别人改过的字段一起覆盖掉 ——
+     * 若此时管理员正在发放工时（status 已变 3、工时/积分字段已写），
+     * 签退的写回会把状态改回 6、把工时积分抹回旧值，而用户账户的积分已经加上，
+     * 记录与账户不一致，且 status=6 又在发放允许范围内，可以再发一次。
+     * 改成只更新必要字段的条件更新后，写入范围被限制在 status + sign_in_time。
+     */
+    @Update("UPDATE sys_registration SET status = 5, sign_in_time = NOW() " +
+            "WHERE reg_id = #{regId} AND user_id = #{userId} AND status = 1")
+    int signInIfApproved(@Param("regId") Long regId, @Param("userId") Long userId);
+
+    /**
+     * 条件签退：只有「本人的、且已签到(5)」的报名才能流转到 6-已签退。
+     * 幂等性与写入范围同上：重复点击只会生效一次，且不会覆盖并发写入的工时/积分字段。
+     */
+    @Update("UPDATE sys_registration SET status = 6, sign_out_time = NOW() " +
+            "WHERE reg_id = #{regId} AND user_id = #{userId} AND status = 5")
+    int signOutIfSignedIn(@Param("regId") Long regId, @Param("userId") Long userId);
 }
