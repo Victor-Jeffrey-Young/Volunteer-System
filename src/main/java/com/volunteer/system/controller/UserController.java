@@ -80,17 +80,36 @@ public class UserController {
 
     @PutMapping("/status")
     @RequiresAdmin
-    @Operation(summary = "[Admin] 切换用户状态", description = "用于封禁违规用户或解除封禁限制")
+    @Operation(summary = "[Admin] 切换用户状态", description = "用于封禁违规用户或解除封禁限制；只接受 userId 与 status 两个字段")
     public Result<String> updateStatus(@RequestBody SysUser user) {
+
+        if (user.getUserId() == null) {
+            return Result.error(400, "用户ID不能为空");
+        }
+        if (user.getStatus() == null || (user.getStatus() != 0 && user.getStatus() != 1)) {
+            return Result.error(400, "状态只能是 0-封禁 / 1-正常");
+        }
 
         // 查出目标用户信息，防止管理员互相伤害
         SysUser target = userService.getById(user.getUserId());
-        if (target != null && "ADMIN".equals(target.getRole())) {
+        if (target == null) {
+            return Result.error(404, "用户不存在");
+        }
+        if ("ADMIN".equals(target.getRole())) {
             return Result.error(403, "权限不足：无法对管理账号进行封禁操作");
         }
 
-        // 实际只需要传入 userId 和 status 两个字段
-        userService.updateById(user);
+        // 白名单更新：只允许改 status。
+        // 这里原先是直接把请求体整体 updateById，而这个接口的语义只需要 userId + status：
+        //   * 批量赋值：请求体里塞 currentPoints / totalPoints / totalHours / role
+        //     都会被一并写库，等于给封禁接口开了改资产、改角色的后门；
+        //   * 丢更新：客户端带来的旧积分若与并发结算（addRewards）相遇，
+        //     整体写回会把刚发的积分覆盖掉。
+        SysUser updateEntity = new SysUser();
+        updateEntity.setUserId(user.getUserId());
+        updateEntity.setStatus(user.getStatus());
+
+        userService.updateById(updateEntity);
         log.info("管理员变更了用户状态, 用户ID: {}, 新状态: {}", user.getUserId(), user.getStatus());
         return Result.success("状态更新成功");
     }
