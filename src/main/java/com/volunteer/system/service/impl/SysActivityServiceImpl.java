@@ -16,4 +16,9 @@ public class SysActivityServiceImpl extends ServiceImpl<SysActivityMapper, SysAc
     public SysActivity getByIdForUpdate(Long activityId) {
         return baseMapper.selectByIdForUpdate(activityId);
     }
+
+    @Override
+    public int releaseSlot(Long activityId) {
+        return baseMapper.releaseSlot(activityId);
+    }
 }

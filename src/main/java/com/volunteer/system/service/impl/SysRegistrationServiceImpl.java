@@ -74,21 +74,28 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     }
 
     // 2. 取消报名逻辑
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancelRegistration(Long regId, Long userId) {
         SysRegistration reg = this.getById(regId);
-        if (reg == null || !reg.getUserId().equals(userId)) throw new ServiceException(403, "非法操作");
-        if (reg.getStatus() == 0 || reg.getStatus() == 1) {
-            reg.setStatus(4); // 4-已取消
-            this.updateById(reg);
+        if (reg == null || reg.getUserId() == null || !reg.getUserId().equals(userId)) {
+            throw new ServiceException(403, "非法操作");
+        }
 
-            // 释放名额：先锁活动行再扣减，防止并发报名/取消交错导致计数错乱
-            SysActivity activity = activityService.getByIdForUpdate(reg.getActivityId());
-            activity.setCurrentNum(activity.getCurrentNum() - 1);
-            activityService.updateById(activity);
-        } else {
+        // 先锁活动行，再对报名行做条件流转：与 applyActivity 使用同一把锁、
+        // 同一个加锁顺序（活动行 → 报名行），两条路径不会互相死锁。
+        if (activityService.getByIdForUpdate(reg.getActivityId()) == null) {
+            throw new ServiceException(404, "活动不存在");
+        }
+
+        // 唯一闸门：只有「仍占名额」的那一次取消能命中一行。
+        // 并发重复点击时其余请求拿到 0 行直接失败，不会再去释放名额。
+        if (baseMapper.cancelIfActive(regId, userId) == 0) {
             throw new ServiceException(400, "当前状态无法取消报名");
         }
+
+        // 释放名额：一条带 current_num > 0 守卫的原子语句，不会把计数扣成负数
+        activityService.releaseSlot(reg.getActivityId());
     }
 
     // 3. 签到打卡 (开始)
@@ -176,25 +183,31 @@ public class SysRegistrationServiceImpl extends ServiceImpl<SysRegistrationMappe
     /**
      * 管理员审核报名 (通过/拒绝)
      */
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void auditRegistration(Long regId, Integer status, String remarks) {
+        // 状态白名单：审核接口只负责「待审 → 通过/拒绝」，
+        // 不允许被当成任意状态跳板（例如直接跳到 6-已签退再走发工时）
+        if (status == null || (status != 1 && status != 2)) {
+            throw new ServiceException(400, "审核结果只能是 1-通过 或 2-拒绝");
+        }
+
         SysRegistration reg = this.getById(regId);
-        if (reg == null || reg.getStatus() != 0) {
+        if (reg == null) {
+            throw new ServiceException(400, "记录不存在");
+        }
+
+        // 与报名/取消共用活动行锁，保证加锁顺序一致
+        activityService.getByIdForUpdate(reg.getActivityId());
+
+        // 条件流转：并发重复审核只会生效一次，拒绝带来的名额释放也就只会发生一次
+        if (baseMapper.auditIfPending(regId, status, remarks) == 0) {
             throw new ServiceException(400, "记录不存在或已处理过");
         }
-        reg.setStatus(status); // 1-通过, 2-拒绝
-        reg.setAuditTime(LocalDateTime.now());
-        reg.setRemarks(remarks);
-        this.updateById(reg);
 
-        // 扩展逻辑：如果拒绝了，活动的已招募人数应该 -1 释放名额
-        // 锁活动行再释放，与报名入口共用一把锁，保证计数一致
+        // 拒绝时释名额：原子语句 + current_num > 0 守卫
         if (status == 2) {
-            SysActivity activity = activityService.getByIdForUpdate(reg.getActivityId());
-            if (activity != null && activity.getCurrentNum() > 0) {
-                activity.setCurrentNum(activity.getCurrentNum() - 1);
-                activityService.updateById(activity);
-            }
+            activityService.releaseSlot(reg.getActivityId());
         }
     }
 }

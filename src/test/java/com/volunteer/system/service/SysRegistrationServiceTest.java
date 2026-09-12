@@ -152,37 +152,75 @@ public class SysRegistrationServiceTest {
     }
 
     @Test
-    @DisplayName("场景5：取消报名 - 验证状态流转与名额释放")
+    @DisplayName("场景5：取消报名 - 条件更新命中后释放一个名额")
     void cancelRegistration_Success() {
         // 模拟已审核通过状态
         mockReg.setStatus(1);
         when(registrationMapper.selectById(50L)).thenReturn(mockReg);
         when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        when(registrationMapper.cancelIfActive(50L, 1L)).thenReturn(1);
 
         registrationService.cancelRegistration(50L, 1L);
 
-        // 状态应变为 4 (已取消)
-        assertEquals(4, mockReg.getStatus());
-        // 活动名额应释放 (5 - 1 = 4)
-        assertEquals(4, mockActivity.getCurrentNum());
-        
-        verify(registrationMapper, times(1)).updateById(mockReg);
-        verify(activityService, times(1)).updateById(mockActivity);
+        // 状态流转由条件更新完成，且只释放一个名额
+        verify(registrationMapper, times(1)).cancelIfActive(50L, 1L);
+        verify(activityService, times(1)).releaseSlot(10L);
+        // 不再整体写回实体（避免覆盖并发期间的其它写入）
+        verify(registrationMapper, never()).updateById(any(SysRegistration.class));
     }
 
     @Test
-    @DisplayName("场景6：管理员审核拒绝 - 验证名额自动退回")
+    @DisplayName("场景5b：并发/重复取消 - 条件更新 0 行时不得重复释放名额")
+    void cancelRegistration_AlreadyCancelled_DoesNotReleaseTwice() {
+        when(registrationMapper.selectById(50L)).thenReturn(mockReg);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        // 模拟第二个并发请求：状态已被别人改走，条件更新命中 0 行
+        when(registrationMapper.cancelIfActive(50L, 1L)).thenReturn(0);
+
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.cancelRegistration(50L, 1L));
+
+        assertEquals(400, ex.getCode());
+        // 关键断言：没有释放名额
+        verify(activityService, never()).releaseSlot(anyLong());
+    }
+
+    @Test
+    @DisplayName("场景6：管理员审核拒绝 - 条件更新命中后释放一个名额")
     void auditRegistration_Reject() {
         mockReg.setStatus(0); // 待审核
         when(registrationMapper.selectById(50L)).thenReturn(mockReg);
         when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        when(registrationMapper.auditIfPending(50L, 2, "不符合要求")).thenReturn(1);
 
         registrationService.auditRegistration(50L, 2, "不符合要求");
 
-        // 状态应变为 2 (拒绝)
-        assertEquals(2, mockReg.getStatus());
-        assertEquals("不符合要求", mockReg.getRemarks());
-        // 名额释放
-        assertEquals(4, mockActivity.getCurrentNum());
+        verify(registrationMapper, times(1)).auditIfPending(50L, 2, "不符合要求");
+        verify(activityService, times(1)).releaseSlot(10L);
+    }
+
+    @Test
+    @DisplayName("场景6b：审核状态越界 - 必须拒绝，不允许跳到任意状态")
+    void auditRegistration_InvalidStatus() {
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.auditRegistration(50L, 6, "想直接跳到已签退"));
+
+        assertEquals(400, ex.getCode());
+        verify(registrationMapper, never()).auditIfPending(anyLong(), anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("场景6c：并发重复审核 - 条件更新 0 行时不得重复释放名额")
+    void auditRegistration_AlreadyHandled_DoesNotReleaseTwice() {
+        mockReg.setStatus(0);
+        when(registrationMapper.selectById(50L)).thenReturn(mockReg);
+        when(activityService.getByIdForUpdate(10L)).thenReturn(mockActivity);
+        when(registrationMapper.auditIfPending(50L, 2, null)).thenReturn(0);
+
+        ServiceException ex = assertThrows(ServiceException.class, () ->
+                registrationService.auditRegistration(50L, 2, null));
+
+        assertEquals(400, ex.getCode());
+        verify(activityService, never()).releaseSlot(anyLong());
     }
 }

@@ -11,4 +11,12 @@ public interface SysActivityService extends IService<SysActivity> {
      * @return 活动实体
      */
     SysActivity getByIdForUpdate(Long activityId);
+
+    /**
+     * 原子释放一个名额（报名被拒绝、用户取消报名时调用）。
+     * 带 current_num > 0 守卫，保证计数不会被扣成负数。
+     * @param activityId 活动ID
+     * @return 影响行数，1 表示确实释放了名额
+     */
+    int releaseSlot(Long activityId);
 }
