@@ -10,4 +10,12 @@ public interface SysGoodsService extends IService<SysGoods>{
      * @return 商品实体
      */
     SysGoods getByIdForUpdate(Long goodsId);
+
+    /**
+     * 按增量调整库存（补货为正、盘亏为负），带「库存不得为负」守卫。
+     * @param goodsId 商品ID
+     * @param delta 调整数量
+     * @return 影响行数，1 表示调整成功，0 表示库存不足或商品不存在
+     */
+    int adjustStock(Long goodsId, Integer delta);
 }

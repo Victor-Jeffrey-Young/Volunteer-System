@@ -20,4 +20,9 @@ public class SysGoodsServiceImpl extends ServiceImpl<SysGoodsMapper, SysGoods> i
         // baseMapper 就是当前 Impl 绑定的 SysGoodsMapper
         return baseMapper.selectByIdForUpdate(id);
     }
+
+    @Override
+    public int adjustStock(Long goodsId, Integer delta) {
+        return baseMapper.adjustStock(goodsId, delta);
+    }
 }

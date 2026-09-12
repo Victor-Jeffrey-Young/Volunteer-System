@@ -91,18 +91,55 @@ public class ShopController {
 
     @PutMapping("/admin/update")
     @RequiresAdmin
-    @Operation(summary = "[Admin] 编辑商品/补充库存")
+    @Operation(summary = "[Admin] 编辑商品信息", description = "白名单更新，不接受库存字段；补货/盘亏请调用 /admin/restock")
     public Result<String> updateGoods(@RequestBody SysGoods goods) {
 
-        if (goods.getStock() != null && goods.getStock() < 0) {
-            throw new ServiceException(400, "商品库存不能小于 0");
+        if (goods.getGoodsId() == null) {
+            throw new ServiceException(400, "商品ID不能为空");
         }
         if (goods.getPointsRequired() != null && goods.getPointsRequired() < 0) {
             throw new ServiceException(400, "商品积分必须大于或等于 0");
         }
 
-        goodsService.updateById(goods);
+        // 白名单更新：库存不在可写字段里。
+        // 库存是并发资产 —— 兑换链路用 SELECT ... FOR UPDATE 在锁内扣减，
+        // 而管理员提交的是打开弹窗那一刻的旧快照，整体写回就会把并发扣减抹掉。
+        // 实测：库存 1 的商品正常兑换后（库存 0、1 条流水），管理员提交旧表单把库存写回 1，
+        // 同一商品最终成交 2 单（超卖）。补货/盘亏走下面的增量接口。
+        SysGoods updateEntity = new SysGoods();
+        updateEntity.setGoodsId(goods.getGoodsId());
+        updateEntity.setName(goods.getName());
+        updateEntity.setDescription(goods.getDescription());
+        updateEntity.setPointsRequired(goods.getPointsRequired());
+        updateEntity.setImage(goods.getImage());
+        updateEntity.setCategory(goods.getCategory());
+
+        goodsService.updateById(updateEntity);
         return Result.success("商品信息修改成功");
+    }
+
+    @PostMapping("/admin/restock")
+    @RequiresAdmin
+    @Operation(summary = "[Admin] 补货 / 盘亏", description = "按增量调整库存：正数补货、负数盘亏，带库存不得为负的守卫")
+    public Result<String> restock(
+            @Parameter(description = "商品ID", required = true) @RequestParam Long goodsId,
+            @Parameter(description = "调整数量：正数补货、负数盘亏", required = true) @RequestParam Integer delta) {
+
+        if (delta == null || delta == 0) {
+            throw new ServiceException(400, "调整数量不能为 0");
+        }
+        if (goodsService.getById(goodsId) == null) {
+            throw new ServiceException(404, "商品不存在");
+        }
+
+        // 一条原子语句完成累加，与用户侧兑换的扣减作用于同一个值，不会互相覆盖
+        if (goodsService.adjustStock(goodsId, delta) == 0) {
+            throw new ServiceException(400, "库存不足，无法扣减这么多");
+        }
+
+        int stock = goodsService.getById(goodsId).getStock();
+        log.info("商品 {} 库存调整 {}，当前库存 {}", goodsId, delta, stock);
+        return Result.success(delta > 0 ? "补货成功，当前库存 " + stock : "库存已调整，当前库存 " + stock);
     }
 
     @DeleteMapping("/admin/{id}")

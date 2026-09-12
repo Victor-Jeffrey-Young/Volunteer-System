@@ -150,9 +150,13 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="库存数量" prop="stock">
-              <el-input-number v-model="form.stock" :min="form.goodsId ? 0 : 1" :step="5" style="width: 100%;"
+            <el-form-item :label="form.goodsId ? '库存调整' : '库存数量'" prop="stock">
+              <el-input-number v-model="form.stock" :min="form.goodsId ? -9999 : 1" :step="5" style="width: 100%;"
                 controls-position="right" />
+              <div v-if="form.goodsId" style="font-size: 12px; color: #909399; line-height: 1.4;">
+                当前库存 {{ currentStock }}。这里填<b>增量</b>：正数补货、负数盘亏，0 表示不动 ——
+                库存是并发资产，填绝对值会覆盖掉用户刚刚兑换掉的库存。
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -278,6 +282,9 @@ const form = ref({
   goodsId: null, name: '', category: '', description: '', pointsRequired: 100, stock: 10, image: ''
 });
 
+/** 编辑弹窗里展示的「当前库存」，仅用于提示，不参与提交 */
+const currentStock = ref(0);
+
 // 让 el-upload 携带 Token 穿透后端拦截器（角色由后端解析 JWT，不走头）
 // 与 utils/request.js 保持一致：直接传原始 token，不加 Bearer 前缀
 const uploadHeaders = {
@@ -292,13 +299,13 @@ const rules = {
     { type: 'number', min: 0, message: '积分不能为负数', trigger: 'blur' }
   ],
   stock: [
-    { required: true, message: '库存必填', trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
-        if (!form.value.goodsId && value <= 0) {
+        if (form.value.goodsId) {
+          // 编辑模式：stock 是「增量」，允许 0（不动）和负数（盘亏）
+          callback();
+        } else if (value === null || value === undefined || value <= 0) {
           callback(new Error('上架初始库存必须大于 0'));
-        } else if (value < 0) {
-          callback(new Error('库存不能为负数'));
         } else {
           callback();
         }
@@ -332,7 +339,9 @@ const openAddDialog = () => {
 
 const openEditDialog = (row) => {
   dialogTitle.value = '✏️ 编辑商品';
-  form.value = { ...row };
+  currentStock.value = row.stock ?? 0;
+  // stock 在这里被复用为「补货增量」，默认 0（不动库存）
+  form.value = { ...row, stock: 0 };
   dialogVisible.value = true;
 };
 
@@ -342,9 +351,18 @@ const submitForm = async () => {
     if (valid) {
       submitLoading.value = true;
       try {
-        const url = form.value.goodsId ? '/api/shop/admin/update' : '/api/shop/admin/add';
-        const method = form.value.goodsId ? 'put' : 'post';
-        await request[method](url, form.value);
+        if (form.value.goodsId) {
+          // 编辑：资料走白名单更新（后端不接受库存字段），库存另走增量接口
+          const { stock, ...info } = form.value;
+          await request.put('/api/shop/admin/update', info);
+          if (stock) {
+            await request.post('/api/shop/admin/restock', null, {
+              params: { goodsId: form.value.goodsId, delta: stock }
+            });
+          }
+        } else {
+          await request.post('/api/shop/admin/add', form.value);
+        }
         ElMessage.success('操作成功');
         dialogVisible.value = false;
         fetchGoodsList(currentPage.value);
