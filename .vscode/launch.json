@@ -1,0 +1,55 @@
+{
+  // 说明：
+  //  1) “终端”类配置使用 VSCode 内置的 node-terminal 调试器，不需要安装 Java 扩展。
+  //  2) 带 Java 断点的配置需要安装推荐扩展 vscjava.vscode-java-pack（打开项目时 VSCode 会提示安装）。
+  //  3) 前端 dev server 使用自签名证书，浏览器首次访问 https://localhost:5173 需手动点“继续访问”。
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "request": "launch",
+      "name": "后端：启动（终端，免扩展）",
+      "command": "./mvnw spring-boot:run",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "node-terminal",
+      "request": "launch",
+      "name": "前端：启动（终端）",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/volunteer-web"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "后端：Spring Boot 断点调试",
+      "mainClass": "com.volunteer.system.VolunteerSystemApplication",
+      // 若提示 Project 'volunteer-system' is not found，删掉下面这行让插件自动定位即可
+      "projectName": "volunteer-system",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "vmArgs": "-Dfile.encoding=UTF-8"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "前端：Chrome 打开页面（需先启动 dev server）",
+      "url": "https://localhost:5173",
+      "webRoot": "${workspaceFolder}/volunteer-web",
+      "runtimeArgs": ["--ignore-certificate-errors"],
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 全栈启动（终端，免扩展）",
+      "configurations": ["后端：启动（终端，免扩展）", "前端：启动（终端）"],
+      "stopAll": true
+    },
+    {
+      "name": "🚀 全栈启动（Java 断点调试）",
+      "configurations": ["后端：Spring Boot 断点调试", "前端：启动（终端）"],
+      "stopAll": true
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  // ⚠️ 不要在这里设置 java.jdt.ls.java.home！
+  // Java 扩展（redhat.java 1.31+）要求"语言服务器"跑在 JDK 21+（扩展自带 Temurin 21），
+  // 而本项目只需要 JDK 17 编译运行 —— 两者必须分开：
+  //   * 语言服务器：用扩展自带的 JRE，什么都不用配
+  //   * 项目代码  ：本机装好 JDK 17，由扩展自动识别
+  // 如果把 java.jdt.ls.java.home 指向 JDK 17，语言服务器会启动即报
+  // "Failed to load extension bundles"，并反复弹右下角提示。
+  //
+  // 装了多个 JDK、需要把本项目钉死在 17 时，用命令面板的
+  // 「Java: Configure Java Runtime」，或在此处按本机路径补上：
+  //   "java.configuration.runtimes": [
+  //     { "name": "JavaSE-17", "path": "<你的 JDK 17 路径>", "default": true }
+  //   ]
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.maven.enabled": true,
+  // ⚠️ 关掉 Java 语言服务器的"自动构建"：否则它会把自己的字节码写进 target/classes，
+  // 而 Maven 靠时间戳判断"类是否最新"，就会直接用插件产出的 class 文件。
+  // 插件一旦处于异常/带错误的编译状态，写出的 class 文件是残缺的（例如 BigDecimal 丢失限定名、
+  // 继承来的 MyBatis-Plus 方法全部消失），Maven 随后报「找不到符号 方法 count(java.lang.Object)」
+  // 「无法访问BigDecimal」这类看不懂的错误。关掉后 target/ 完全由 Maven 管理，互不干扰。
+  // 影响：编辑时仍有语法/语义提示；F5 用 Java 断点调试时，下面这行会先触发一次构建，不受影响。
+  "java.autobuild.enabled": false,
+  "java.debug.settings.forceBuildBeforeLaunch": true,
+  "java.debug.settings.hotCodeReplace": "auto",
+  "java.debug.settings.console": "internalConsole",
+  "java.compile.nullAnalysis.mode": "automatic",
+  "redhat.telemetry.enabled": false,
+
+  // 代码检索/监听排除构建产物，避免 target、node_modules 拖慢索引
+  "files.exclude": {
+    "**/target": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "**/target": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/package-lock.json": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/node_modules/**": true,
+    "**/dist/**": true
+  },
+
+  // 终端：任务输出保留足够历史（不注入 JAVA_HOME，沿用你 shell 里的配置）
+  "terminal.integrated.scrollback": 10000
+}

@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    // Java / Spring Boot：断点调试、Maven 面板、Spring Boot Dashboard
+    "vscjava.vscode-java-pack",
+    "vmware.vscode-spring-boot",
+    // Vue 3 单文件组件语法与类型提示
+    "Vue.volar",
+    // 数据库容器与 SQL 查看
+    "ms-azuretools.vscode-docker"
+  ],
+  "unwantedRecommendations": []
+}

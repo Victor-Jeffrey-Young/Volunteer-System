@@ -1,0 +1,201 @@
+{
+  // 项目启动任务：终端模式下无需安装任何扩展即可运行（Java 扩展只影响断点调试）
+  // 用法：Cmd+Shift+P -> Tasks: Run Task
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "后端：启动 Spring Boot",
+      "detail": "mvnw spring-boot:run -> http://localhost:8081/doc.html",
+      "type": "shell",
+      "command": "./mvnw spring-boot:run",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "spring-boot",
+        "pattern": {
+          "regexp": "^(.*(?:ERROR|BUILD FAILURE).*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Scanning for projects|Building volunteer-system",
+          "endsPattern": "Started VolunteerSystemApplication in|Tomcat started on port"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev",
+        "reveal": "always",
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      // 什么时候用它：Maven 编译报出「看不懂的」错误时，例如
+      //   找不到符号 方法 xxx(java.lang.Object)
+      //   无法访问BigDecimal / 找不到BigDecimal的类文件
+      // 这说明 target/classes 里的 class 文件被 Java 语言服务器改写坏了，
+      // clean 一次即可恢复（VSCodium/IDEA 的 Java 插件都会往 target/ 里写字节码）。
+      "label": "后端：清理并启动（编译报诡异错误时用）",
+      "detail": "./mvnw clean spring-boot:run —— 先删 target/ 再全量重编译",
+      "type": "shell",
+      "command": "./mvnw clean spring-boot:run",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "spring-boot",
+        "pattern": {
+          "regexp": "^(.*(?:ERROR|BUILD FAILURE).*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Scanning for projects|Building volunteer-system",
+          "endsPattern": "Started VolunteerSystemApplication in|Tomcat started on port"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev",
+        "reveal": "always",
+        "clear": true
+      }
+    },
+    {
+      "label": "前端：启动 Vite Dev Server",
+      "detail": "npm run dev -> https://localhost:5173（自签名证书，浏览器点“继续访问”）",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/volunteer-web"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^(.*(?:error|ERROR|failed).*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "vite|VITE",
+          // 不写死 5173，也不匹配 "Local:" 后的空格（Vite 输出带 ANSI 颜色码，容易匹配失败）
+          "endsPattern": "localhost:[0-9]+"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev",
+        "reveal": "always",
+        "clear": true
+      }
+    },
+    {
+      "label": "全栈：一键启动（任务模式）",
+      "detail": "并行启动后端 8081 + 前端 5173，停止时请分别结束两个终端",
+      "dependsOrder": "parallel",
+      "dependsOn": ["后端：启动 Spring Boot", "前端：启动 Vite Dev Server"],
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "前端：安装依赖",
+      "detail": "首次 clone 或 package.json 变更后执行",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/volunteer-web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "前端：打包构建",
+      "detail": "vite build -> volunteer-web/dist",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "${workspaceFolder}/volunteer-web"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "后端：编译打包（跳过测试）",
+      "type": "shell",
+      "command": "./mvnw clean package -DskipTests",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "后端：运行测试",
+      "type": "shell",
+      "command": "./mvnw test",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "数据库：启动 MySQL 容器",
+      "detail": "docker start volunteer-mysql（3306 端口，库名 volunteer_db）",
+      "type": "shell",
+      "command": "docker start volunteer-mysql || docker ps -a --filter name=volunteer-mysql",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "数据库：执行 SQL 迁移脚本（仅首次）",
+      "detail": "重复执行会因索引已存在而报错，属于预期",
+      "type": "shell",
+      "command": "for f in sql/*.sql; do echo \"▶ 执行 $f\"; docker exec -i volunteer-mysql mysql -uroot -p123456 volunteer_db < \"$f\"; done",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "全栈：一键启动（shell 脚本）",
+      "detail": "scripts/dev.sh：带日志前缀、自动检查 MySQL/端口、Ctrl+C 一起退出",
+      "type": "shell",
+      "command": "./scripts/dev.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "dev-sh",
+        "pattern": {
+          "regexp": "^(.*(?:ERROR|启动失败|端口被占用).*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "启动 Volunteer-System 开发环境",
+          "endsPattern": "两个服务均已就绪|服务已就绪"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "group": "dev",
+        "reveal": "always",
+        "clear": true
+      }
+    }
+  ]
+}
