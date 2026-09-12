@@ -207,6 +207,39 @@ npm run dev
 > 走完整拦截器链，而不是把 `JwtUtils` mock 掉）、微心愿状态机与归属校验、并发与原子性、
 > 密码迁移、文件上传安全。
 
+### 7. 用 VSCode 启动（可选，替代 IDEA）
+
+仓库内置了 `.vscode/` 配置与 `scripts/dev.sh`，不依赖 IDEA：
+
+```bash
+./scripts/dev.sh            # 一键启动后端 8081 + 前端 5173
+./scripts/dev.sh backend    # 只启动后端
+./scripts/dev.sh frontend   # 只启动前端
+```
+
+脚本会先检查 MySQL 容器（`volunteer-mysql`）、JDK、Node 与端口占用，输出带 `[后端]`/`[前端]`
+前缀，日志落在 `$TMPDIR/volunteer-system-dev/*.log`，按 `Ctrl+C` 一次性停掉全部子进程。
+
+在 VSCode 里等价的操作：
+
+| 入口 | 说明 |
+|------|------|
+| 运行和调试（`F5`）→ `🚀 全栈启动（终端，免扩展）` | 起后端 + 前端，无需安装任何扩展 |
+| 运行和调试 → `🚀 全栈启动（Java 断点调试）` | 后端支持 Java 断点，需安装推荐的 Java 扩展包 |
+| 终端 → 运行任务 → `全栈：一键启动（任务模式）` | 用 VSCode 任务面板分别管理两个终端 |
+| 终端 → 运行任务 → `后端：清理并启动（编译报诡异错误时用）` | 先删 `target/` 再全量重编译，见下方故障排查 |
+| 终端 → 运行任务 → `数据库：启动 MySQL 容器` | 本地 MySQL 没起来时先跑这个 |
+
+首次用 VSCode 打开项目时会提示安装推荐扩展（Java 扩展包、Vue Volar、Docker）；
+只想用终端模式跑起来的话可以直接忽略。
+
+> **编译报出看不懂的错误时先 `clean` 一次。** 如果 Maven 报的是
+> `找不到符号 方法 xxx(java.lang.Object)`、`无法访问BigDecimal / 找不到BigDecimal的类文件`、
+> `assertThrows 找不到合适的方法` 这类**和源码对不上**的错误，那不是代码问题：
+> IDE 的 Java 插件会把自己的字节码写进 `target/classes`，而 Maven 靠时间戳判断类是否最新，
+> 于是直接用了插件产出的残缺 class 文件。执行 `./mvnw clean`（或上面那个 clean 任务）即可恢复。
+> 本项目已在 `.vscode/settings.json` 里关闭 `java.autobuild.enabled`，从源头避免这种互相覆盖。
+
 ---
 
 ## 数据库表结构
