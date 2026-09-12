@@ -171,9 +171,11 @@ CREATE DATABASE IF NOT EXISTS volunteer_db
 ```bash
 mysql -uroot -p volunteer_db < sql/2026-09-09-registration-unique-index.sql   # 防重复报名的唯一索引
 mysql -uroot -p volunteer_db < sql/2026-09-12-redeem-code-unique-index.sql   # 核销码唯一索引
+mysql -uroot -p volunteer_db < sql/2026-09-13-counter-non-negative-check.sql # 库存/名额/积分不允许为负
 ```
 
-> ⚠️ 这两个脚本是**并发与安全防线的数据库兜底**，跳过不执行不会报错，但最后一道防线就不存在了。
+> ⚠️ 这三个脚本是**并发与安全防线的数据库兜底**，跳过不执行不会报错，但最后一道防线就不存在了。
+> 最后一个脚本会加 `CHECK` 约束（需要 MySQL 8.0.16+），执行前请先跑脚本里的第 1 步检查确认没有负值。
 > 后续计划引入 Flyway 把它们纳入版本管理（见 `docs/面试讲解指南.md` 第 6 章 R2）。
 
 ### 4. 启动后端
@@ -200,12 +202,16 @@ npm run dev
 ### 6. 运行测试
 
 ```bash
-./mvnw test        # 85 个用例
+./mvnw test        # 110 个用例
 ```
 
-> 其中 `contextLoads` 需要本地 MySQL 可连接。测试覆盖：鉴权与越权回归（用**真实签名的 Token**
-> 走完整拦截器链，而不是把 `JwtUtils` mock 掉）、微心愿状态机与归属校验、并发与原子性、
-> 密码迁移、文件上传安全。
+> 其中 `contextLoads` 与 `concurrency/` 下的并发回归测试需要本地 MySQL 可连接。
+> 测试覆盖：鉴权与越权回归（用**真实签名的 Token** 走完整拦截器链，而不是把 `JwtUtils` mock 掉）、
+> 微心愿状态机与归属校验、并发与原子性、密码迁移、文件上传安全。
+>
+> `concurrency/` 两个类是真库 + 真多线程（`CountDownLatch` 同时起跑，5 线程）的回归测试，
+> 专门锁死这几类竞态：并发报名只落一条、并发取消/驳回只释放一个名额、并发签到签退只生效一次、
+> 并发兑换只成交一单、管理端编辑不得覆盖并发期间的报名数与库存。用例自建数据并在结束后清理。
 
 ### 7. 用 VSCode 启动（可选，替代 IDEA）
 
