@@ -74,6 +74,14 @@ if ! run_sql <<< "SELECT 1;" >/dev/null 2>&1; then
     die "连不上数据库，请确认容器已启动、.env 里的口令正确"
 fi
 
+# ---------- 前置检查：库结构是否就绪 ----------
+# 全新数据库必须先跑 sql/00-schema.sql 与三个迁移脚本，否则这里是 TRUNCATE 失败、看不懂原因
+if ! run_sql <<< "SELECT 1 FROM sys_user LIMIT 1;" >/dev/null 2>&1; then
+    die "库结构还没初始化（找不到 sys_user 表）。先按顺序执行：
+       mysql -uroot -p ${DB_NAME} < sql/00-schema.sql
+       for f in sql/2026-*.sql; do mysql -uroot -p ${DB_NAME} < \"\$f\"; done"
+fi
+
 # ---------- 备份 ----------
 if [ "$DO_BACKUP" = "1" ]; then
     mkdir -p "$BACKUP_DIR"

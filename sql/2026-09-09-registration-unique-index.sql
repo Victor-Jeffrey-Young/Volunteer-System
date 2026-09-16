@@ -34,12 +34,16 @@ ALTER TABLE sys_registration
 SHOW COLUMNS FROM sys_registration LIKE 'active_flag';
 SHOW INDEX FROM sys_registration WHERE Key_name = 'uk_user_activity_active';
 
--- 5. 兜底自测：单条语句插入两条重复有效报名，应整句报 1062 Duplicate entry
---    MySQL 多行 INSERT 是原子操作：冲突即整句失败，不会残留半截数据，无需清理
-INSERT INTO sys_registration (user_id, activity_id, status, apply_time, actual_hours)
-SELECT 1, 1, 0, NOW(), 0
-UNION ALL
-SELECT 1, 1, 0, NOW(), 0;
--- 预期报错：Duplicate entry '1-1-1' for key 'uk_user_activity_active'
--- 报错即说明唯一索引兜底生效，脚本到此完成
+-- 5.（可选，默认注释掉）兜底自测：单条语句插入两条重复有效报名，应整句报 1062 Duplicate entry
+--    MySQL 多行 INSERT 是原子操作：冲突即整句失败，不会残留半截数据，无需清理。
+--
+--    ⚠️ 为什么默认注释掉：这条语句是**故意制造报错**的验证，手工执行时"看到红字 = 成功"很直观，
+--    但 mysql 客户端遇到报错会中断后续语句并以非 0 退出 —— 在自动化流程（CI、部署脚本、
+--    `for f in sql/*.sql` 批量执行）里会被当成执行失败。需要手工验证时取消下面四行注释：
+--
+-- INSERT INTO sys_registration (user_id, activity_id, status, apply_time, actual_hours)
+-- SELECT 1, 1, 0, NOW(), 0
+-- UNION ALL
+-- SELECT 1, 1, 0, NOW(), 0;
+-- 预期报错：Duplicate entry '1-1-1' for key 'uk_user_activity_active'（报错即说明唯一索引兜底生效）
 

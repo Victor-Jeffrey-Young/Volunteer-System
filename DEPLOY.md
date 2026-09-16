@@ -41,7 +41,8 @@
 - [ ] 目标机器：内存 ≥2GB（1GB 严格照 2.1 节）、放行 **80/443**、**绝不放行 3306**
 - [ ] 生成两个密钥：`openssl rand -base64 48`（`JWT_SECRET`）、`openssl rand -base64 18`（`DB_PASSWORD`）
 - [ ] 域名与 A 记录（只做内网验证可跳过，先用自签证书）
-- [ ] 记住迁移脚本必须执行：`sql/` 下三个脚本 —— 漏掉就没有唯一索引与 CHECK 兜底
+- [ ] 记住数据库要初始化：`sql/00-schema.sql`（建表）+ 三个日期脚本（唯一索引与 CHECK 兜底），
+      `for f in sql/*.sql` 会按文件名顺序全部执行
 - [ ] 演示数据：`bash scripts/reset-demo-data.sh --yes`（执行前会自动备份现有数据）
 
 ### 1.3 服务器准备
@@ -86,7 +87,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 365 \
 # 3) 起容器（首次会构建镜像，约 3–8 分钟）
 docker compose up -d --build
 
-# 4) 执行数据库迁移（只做一次；漏做会少掉唯一索引与 CHECK 兜底）
+# 4) 初始化数据库结构 + 执行迁移（只做一次；漏做会少掉唯一索引与 CHECK 兜底）
+#    00-schema.sql 建表（新库必需），其余三个脚本补防线；glob 顺序保证基线在最前
 for f in sql/*.sql; do
   echo "▶ $f"
   docker exec -i volunteer-mysql mysql -uroot -p"$(grep -oP '(?<=^DB_PASSWORD=).*' .env)" volunteer_db < "$f"

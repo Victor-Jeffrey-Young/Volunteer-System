@@ -171,9 +171,10 @@ CREATE DATABASE IF NOT EXISTS volunteer_db
 
 ### 3. 执行数据库迁移脚本
 
-`sql/` 下的脚本需按日期顺序执行一次：
+`sql/` 下的脚本需按文件名顺序执行一次（`00-schema.sql` 建表在最前）：
 
 ```bash
+mysql -uroot -p volunteer_db < sql/00-schema.sql                             # 建表基线（新库从这里开始）
 mysql -uroot -p volunteer_db < sql/2026-09-09-registration-unique-index.sql   # 防重复报名的唯一索引
 mysql -uroot -p volunteer_db < sql/2026-09-12-redeem-code-unique-index.sql   # 核销码唯一索引
 mysql -uroot -p volunteer_db < sql/2026-09-13-counter-non-negative-check.sql # 库存/名额/积分不允许为负
