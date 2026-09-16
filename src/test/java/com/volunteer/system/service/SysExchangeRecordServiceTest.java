@@ -7,6 +7,7 @@ import com.volunteer.system.entity.SysGoods;
 import com.volunteer.system.entity.SysUser;
 import com.volunteer.system.mapper.SysExchangeRecordMapper;
 import com.volunteer.system.service.impl.SysExchangeRecordServiceImpl;
+import com.volunteer.system.utils.RedeemCodeGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.lang.reflect.Field;
 
@@ -32,6 +34,7 @@ public class SysExchangeRecordServiceTest {
     @Mock private SysExchangeRecordMapper recordMapper;
     @Mock private SysUserService userService;
     @Mock private SysGoodsService goodsService;
+    @Mock private RedeemCodeGenerator codeGenerator;
 
     @InjectMocks private SysExchangeRecordServiceImpl recordService;
 
@@ -64,8 +67,8 @@ public class SysExchangeRecordServiceTest {
         when(userService.getById(101L)).thenReturn(mockUser);
         // 条件扣减返回 1 行，代表余额充足且扣减已原子完成
         when(userService.deductPointsIfEnough(101L, 150)).thenReturn(1);
-        // 核销码唯一性检查：库里尚无同码
-        when(recordMapper.selectCount(any(Wrapper.class))).thenReturn(0L);
+        // 核销码由可注入的生成器给出；唯一性不再靠「先查后插」，而是靠唯一索引兜底
+        when(codeGenerator.next()).thenReturn("GIFT-ABCDEFGHJK");
 
         String code = recordService.exchange(101L, 1L);
 
@@ -83,6 +86,46 @@ public class SysExchangeRecordServiceTest {
         // 验证流水落库
         verify(goodsService, times(1)).updateById(mockGoods);
         verify(recordMapper, times(1)).insert(any(SysExchangeRecord.class));
+    }
+
+    @Test
+    @DisplayName("场景1b：核销码撞唯一索引 - 换码重试一次即成功，落库用的是新码")
+    void exchange_RetriesWhenRedeemCodeConflicts() {
+        when(goodsService.getByIdForUpdate(1L)).thenReturn(mockGoods);
+        when(userService.getById(101L)).thenReturn(mockUser);
+        when(userService.deductPointsIfEnough(101L, 150)).thenReturn(1);
+        // 第一次生成的码已被占用（唯一索引冲突），第二次换成新码
+        when(codeGenerator.next()).thenReturn("GIFT-AAAAAAAAAA", "GIFT-BBBBBBBBBB");
+        when(recordMapper.insert(any(SysExchangeRecord.class)))
+                .thenThrow(new DuplicateKeyException("uk_redeem_code"))
+                .thenReturn(1);
+
+        String code = recordService.exchange(101L, 1L);
+
+        assertEquals("GIFT-BBBBBBBBBB", code, "返回的应当是重试后生成的新码");
+        verify(recordMapper, times(2)).insert(any(SysExchangeRecord.class));
+        // 冲突只影响插入语句，资产扣减不应被重复执行
+        verify(userService, times(1)).deductPointsIfEnough(101L, 150);
+        verify(goodsService, times(1)).updateById(mockGoods);
+    }
+
+    @Test
+    @DisplayName("场景1c：连续 5 次都撞唯一索引 - 抛业务异常，不再无限重试")
+    void exchange_RedeemCodeExhausted() {
+        when(goodsService.getByIdForUpdate(1L)).thenReturn(mockGoods);
+        when(userService.getById(101L)).thenReturn(mockUser);
+        when(userService.deductPointsIfEnough(101L, 150)).thenReturn(1);
+        when(codeGenerator.next()).thenReturn("GIFT-AAAAAAAAAA");
+        when(recordMapper.insert(any(SysExchangeRecord.class)))
+                .thenThrow(new DuplicateKeyException("uk_redeem_code"));
+
+        ServiceException ex = assertThrows(ServiceException.class, () -> {
+            recordService.exchange(101L, 1L);
+        });
+
+        assertEquals(500, ex.getCode());
+        assertEquals("核销码生成失败，请稍后重试", ex.getMessage());
+        verify(recordMapper, times(5)).insert(any(SysExchangeRecord.class));
     }
 
     @Test
