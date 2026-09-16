@@ -1,0 +1,118 @@
+name: CI
+
+# 公开仓库的 Actions 分钟数免费，所以这里把「以后手工才会发现的问题」全挪到每次 push：
+#   - 迁移脚本漏跑（唯一索引 / CHECK 不存在 → 并发兜底少两层）
+#   - 测试在别人的机器上跑不起来（本项目的集成测试需要真 MySQL）
+#   - Dockerfile 改坏了（部署当天才发现）
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支连续 push 时取消上一次，省额度也省等待
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: 后端（迁移 + 全量测试）
+    runs-on: ubuntu-latest
+    services:
+      # 用真实 MySQL 8 起测试库：本项目有 10 个 @SpringBootTest 集成测试
+      # （含真库并发回归），mock 掉数据库就没有意义了。
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: "123456"
+          MYSQL_DATABASE: volunteer_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p123456"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: 确保有 mysql 客户端
+        run: command -v mysql >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq mysql-client; }
+
+      - name: 执行数据库迁移脚本（唯一索引 / 核销码唯一 / 计数器 CHECK）
+        run: |
+          for f in sql/*.sql; do
+            echo "▶ $f"
+            mysql -h 127.0.0.1 -uroot -p123456 volunteer_db < "$f"
+          done
+
+      - name: 全量测试（125 例，含真库并发回归）
+        run: ./mvnw -B clean test
+
+      - name: 失败时上传测试报告
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+  frontend:
+    name: 前端（构建产物）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: volunteer-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: volunteer-web/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建
+        run: npm run build
+
+      - name: 报告产物体积（优化后约 4.2M，明显变大说明又混进了大图）
+        run: du -sh dist
+
+  images:
+    name: 镜像可构建（不推送）
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 构建后端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.backend
+          push: false
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: 构建前端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.frontend
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend

@@ -1,6 +1,11 @@
 # 🫶 社区志愿服务管理系统
 
+[![CI](https://github.com/Victor-Jeffrey-Young/Volunteer-System/actions/workflows/ci.yml/badge.svg)](https://github.com/Victor-Jeffrey-Young/Volunteer-System/actions/workflows/ci.yml)
+[![CD](https://github.com/Victor-Jeffrey-Young/Volunteer-System/actions/workflows/cd.yml/badge.svg)](https://github.com/Victor-Jeffrey-Young/Volunteer-System/actions/workflows/cd.yml)
+
 基于 **Spring Boot 3 + Vue 3** 的全栈社区志愿服务管理平台，覆盖志愿者、管理员、居民三类角色，实现活动招募、签到打卡、积分商城、微心愿墙等完整业务闭环。
+
+> 🚀 想直接看线上效果？部署（含免费方案与 CI/CD）见 [`DEPLOY.md`](DEPLOY.md)。
 
 ---
 

@@ -316,3 +316,51 @@ VITE_HTTPS=false ./scripts/dev.sh
 > `dev.sh` 里的 docker 检查会提示「未检测到 docker」，忽略即可 —— 它只是不去启动 MySQL 容器。
 > 想验证 http 模式确实生效：`curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/` 应返回 200，
 > 而 `https://localhost:5173/` 连不上（证书已关）。
+
+---
+
+## 10. 用 GitHub Actions + GHCR 自动构建与更新镜像
+
+仓库里已内置两个工作流（`.github/workflows/`），**公开仓库不消耗 Actions 额度**：
+
+| 工作流 | 触发 | 做什么 |
+|---|---|---|
+| `ci.yml` | push / PR | 起一个真实 MySQL 8 服务容器 → 执行 `sql/*.sql` 迁移 → `./mvnw clean test`（125 例，含真库并发回归）→ 前端 `npm ci && npm run build` → 最后验证两个 Dockerfile 都能构建 |
+| `cd.yml` | push 到 main / 手动 | 构建两个镜像并推送到 GHCR，打 `:latest` 与 `:sha-<commit>` 两个 tag；手动触发时可勾选「同时部署到服务器」 |
+
+> 为什么 CI 里要先跑迁移脚本：`SysExchangeRecordCodeConflictTest` 依赖 `uk_redeem_code`
+> 唯一索引、并发相关用例依赖 `uk_user_activity_active` 与 CHECK 约束。少跑一次脚本，
+> CI 会直接红给你看 —— 这正是把"部署时容易漏的一步"提前暴露出来。
+
+### 10.1 服务器改成拉镜像（推荐；1GB 机型必用）
+
+```bash
+# 在服务器仓库目录的 .env 里加两行：
+#   GHCR_PREFIX=ghcr.io/<用户名小写>/<仓库名小写>     ← CI 日志里会打印「镜像前缀」
+#   IMAGE_TAG=latest
+vi .env
+
+# 仓库若是私有的，先登录（公开仓库可直接拉）
+echo <你的PAT> | docker login ghcr.io -u <你的GitHub用户名> --password-stdin
+
+# 每次发版：拉新镜像 + 重启（服务器不构建、也不用传源码）
+docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml pull
+docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml up -d
+```
+
+**回滚**：镜像按提交打了 tag，`IMAGE_TAG=sha-<旧提交> docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml up -d` 即可回到那一版。
+
+### 10.2 一键部署（可选，需先配 secrets）
+
+`cd.yml` 的 deploy job 会 SSH 到服务器执行上面那两条命令。启用前在
+仓库 **Settings → Secrets and variables → Actions** 添加：
+
+| Secret | 说明 |
+|---|---|
+| `DEPLOY_HOST` | 服务器 IP 或域名 |
+| `DEPLOY_USER` | SSH 用户（如 `root`） |
+| `DEPLOY_SSH_KEY` | 私钥全文：`ssh-keygen -t ed25519 -f deploy_key`，公钥追加到服务器 `~/.ssh/authorized_keys` |
+| `DEPLOY_PATH` | 仓库在服务器上的路径，例如 `/opt/Volunteer-System` |
+
+配好后：**Actions → CD → Run workflow → 勾选「同时部署到服务器」**。
+没配 secrets 也不会影响 push 触发的镜像构建（deploy job 不会运行）。

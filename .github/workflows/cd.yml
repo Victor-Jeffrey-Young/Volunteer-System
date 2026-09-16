@@ -1,0 +1,104 @@
+name: CD
+
+# 两件事：
+#   1. push 到 main → 构建两个镜像并推到 GHCR（:latest 与 :sha-<commit>）；
+#   2. 手动触发并勾选 deploy → 再通过 SSH 让服务器拉新镜像重启。
+# 服务器只 pull 不 build，所以 1GB 机型也能用（构建要 1GB 上下内存，见 DEPLOY.md 2.1）。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 同时部署到服务器（需先配置 DEPLOY_* secrets，见 DEPLOY.md 第 10 节）
+        type: boolean
+        default: false
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  images:
+    name: 构建并推送镜像（GHCR）
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            dockerfile: deploy/Dockerfile.backend
+          - name: frontend
+            dockerfile: deploy/Dockerfile.frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 计算镜像前缀（GHCR 只接受小写）
+        id: meta
+        run: |
+          prefix="${{ env.REGISTRY }}/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo "prefix=$prefix" >> "$GITHUB_OUTPUT"
+          echo "镜像前缀：$prefix （服务器 .env 里的 GHCR_PREFIX 就填这个）"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 登录 GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建并推送 ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:latest
+            ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:sha-${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  deploy:
+    name: 部署到服务器（手动触发）
+    needs: images
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查 secrets 是否配齐
+        run: |
+          missing=""
+          [ -n "${{ secrets.DEPLOY_HOST }}" ] || missing="$missing DEPLOY_HOST"
+          [ -n "${{ secrets.DEPLOY_USER }}" ] || missing="$missing DEPLOY_USER"
+          [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ] || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "${{ secrets.DEPLOY_PATH }}" ] || missing="$missing DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "缺少 secrets：$missing"
+            echo "配置位置：仓库 Settings → Secrets and variables → Actions，见 DEPLOY.md 第 10.2 节"
+            exit 1
+          fi
+
+      - name: 写入 SSH 私钥并信任主机指纹
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 服务器上拉取新镜像并重启
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml pull
+            docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml up -d
+            docker compose ps
+          '

@@ -1,0 +1,25 @@
+# ════════════════════════════════════════════════════════════════
+# 用 GitHub Actions 构建好的镜像（GHCR），服务器只拉不构建
+#
+#   docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml pull
+#   docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml up -d
+#
+# 为什么需要它：1GB 机型在服务器上构建镜像会 OOM（Maven 与 Vite 各要 1GB 上下内存），
+# 用这个覆盖文件后，服务器只做 pull + 起容器。
+#
+# .env 里需要：
+#   GHCR_PREFIX=ghcr.io/<你的用户名小写>/<仓库名小写>
+#   IMAGE_TAG=latest            # 回滚时改成 sha-<旧提交>，见 DEPLOY.md 第 10 节
+#
+# 仓库若是私有的，先 docker login ghcr.io（公开仓库可直接拉）。
+# ════════════════════════════════════════════════════════════════
+
+services:
+  backend:
+    image: ${GHCR_PREFIX:?请在 .env 里设置 GHCR_PREFIX}/backend:${IMAGE_TAG:-latest}
+    # 覆盖基础文件里的 never：这里就是奔着"拉最新镜像"来的
+    pull_policy: always
+
+  frontend:
+    image: ${GHCR_PREFIX:?请在 .env 里设置 GHCR_PREFIX}/frontend:${IMAGE_TAG:-latest}
+    pull_policy: always
