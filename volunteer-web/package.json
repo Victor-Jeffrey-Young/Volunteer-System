@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:http": "VITE_HTTPS=false vite --host"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

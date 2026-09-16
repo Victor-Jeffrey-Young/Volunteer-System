@@ -246,3 +246,42 @@ docker compose down
    演示期建议关注册，或定期跑 `scripts/reset-demo-data.sh` 重置。
 
 其余已修与未修问题清单见 `docs/问题与修复档案.md`（本地文档）与《面试讲解指南》第 6.2 节。
+
+---
+
+## 9. 用 GitHub Codespaces 做临时演示（免费、自带 HTTPS）
+
+**适合**：下周就要面试、只想当场给一个公网链接。不用买服务器、不用域名，10 分钟拿到
+`https://xxx-5173.app.github.dev` —— 外层本身就是 HTTPS，所以**扫码签到（摄像头）也能用**。
+**不适合**：长期挂着。Codespaces 闲置会自动停，免费额度以 GitHub 计费页为准（学生账号有额外额度）。
+
+> ⚠️ 这条路线**不要用 nginx 那套 compose**：`deploy/nginx.conf` 里的 301 是按 Host 跳转的，
+> 和转发域名对不上。用 Vite dev server + 它自带的 `/api` 代理这条同源路径最省事。
+
+```bash
+# ① 装并启动 MySQL（Codespaces 里没有 docker daemon，用不到 compose；lsof 给 dev.sh 的端口检查用）
+sudo apt-get update && sudo apt-get install -y mysql-server lsof
+sudo service mysql start
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '123456';"
+sudo mysql -e "CREATE DATABASE volunteer_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;"
+
+# ② 建防线 + 演示数据（迁移脚本按日期顺序执行）
+export DB_PASSWORD=123456
+for f in sql/*.sql; do sudo mysql -uroot -p"$DB_PASSWORD" volunteer_db < "$f"; done
+bash scripts/reset-demo-data.sh --yes
+
+# ③ 一条命令起后端 8081 + 前端 5173
+#    VITE_HTTPS=false 让前端走 http：外层 GitHub 已经终结了 TLS，
+#    内层再套 Vite 的自签证书会握手失败（本地开发不要加这个变量）
+VITE_HTTPS=false ./scripts/dev.sh
+```
+
+④ 打开「端口」面板，把 **5173** 的可见性改成 **Public**，把给出的
+`https://…-5173.app.github.dev` 链接发出去即可。**只需暴露 5173**：前端通过 `/api`、`/files`
+代理访问 8081，同源，不会遇到跨域。
+
+⑤ 演示结束直接关掉 Codespace 就行。下次重开时 MySQL 数据会重建，重跑 ①~② 即可。
+
+> `dev.sh` 里的 docker 检查会提示「未检测到 docker」，忽略即可 —— 它只是不去启动 MySQL 容器。
+> 想验证 http 模式确实生效：`curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/` 应返回 200，
+> 而 `https://localhost:5173/` 连不上（证书已关）。
