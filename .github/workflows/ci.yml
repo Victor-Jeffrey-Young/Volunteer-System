@@ -65,6 +65,27 @@ jobs:
           path: target/surefire-reports/
           if-no-files-found: ignore
 
+      - name: 失败时把失败用例写成注解
+        # 为什么需要这一步：Actions 的日志下载接口需要登录，匿名只能读到「哪个 job/步骤失败」。
+        # 把失败用例号以 ::error:: 注解的形式打出来，就成了 check-run annotations，
+        # 匿名也能通过 API 读到 —— 排查偶发失败时不用再猜。
+        if: failure()
+        run: |
+          set +e
+          found=0
+          for f in target/surefire-reports/*.txt; do
+            [ -f "$f" ] || continue
+            if grep -qE "Failures: [1-9]|Errors: [1-9]" "$f"; then
+              found=1
+              echo "::error title=失败用例::$(basename "$f" .txt)"
+              grep -E "<<< (FAILURE|ERROR)!|AssertionFailedError|AssertionError|expected:|Caused by:" "$f" \
+                | head -3 | while IFS= read -r line; do echo "::error::$line"; done
+            fi
+          done
+          if [ "$found" = "0" ]; then
+            echo "::error title=没有 surefire 报告::测试可能在编译或环境阶段就失败了，看前面的步骤"
+          fi
+
   frontend:
     name: 前端（构建产物）
     runs-on: ubuntu-latest
