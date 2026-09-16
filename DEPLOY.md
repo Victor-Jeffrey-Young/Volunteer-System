@@ -67,6 +67,46 @@ bash scripts/reset-demo-data.sh --yes
 
 访问 `https://<你的域名>/` 即可。接口文档在 `/doc.html`。
 
+### 2.1 如果是最便宜的 1GB 机型（先看这段）
+
+**默认配置已经按 1GB 适配**，不用改任何东西：JVM 堆上限 50% + SerialGC + 线程栈 512k、
+MySQL buffer pool 128M、最大连接 50、关闭 `performance_schema`（能省 100~200MB）。
+机器是 2GB / 4GB 想调回去，改 `.env` 里的 `JAVA_TOOL_OPTIONS` 与 `MYSQL_*`
+即可 —— `.env.example` 里按机型给了推荐值。
+
+**但不要在 1GB 机器上构建镜像**：Maven 编译和 Vite 打包各自都要 1GB 上下内存，
+构建中途会被 OOM Killer 干掉。两种做法：
+
+**做法一（推荐）：本地构建，传上去 load**
+
+```bash
+# 本机（已经构建过就跳过第一条）
+docker compose build
+docker save volunteer-system-backend:latest volunteer-system-frontend:latest | gzip > images.tgz
+scp images.tgz root@<服务器IP>:/root/
+
+# 服务器：只需要仓库里的 compose / nginx 配置 / sql，不需要在本地编译
+gunzip -c images.tgz | docker load
+docker compose up -d          # 不加 --build：两个服务写了 pull_policy: never，直接用 load 进来的镜像
+```
+
+**做法二：给服务器加 2GB swap 再构建**
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+**部署后瞄一眼内存占用：**
+
+```bash
+docker stats --no-stream     # backend / mysql 的 MEM USAGE
+free -h                      # 还剩多少可用
+```
+
+> 想再省一点：把 `DB_POOL_SIZE` 从 10 调到 5（`.env` 里加一行），
+> 演示场景并发很低，5 个连接足够。
+
 ---
 
 ## 3. 上线验收清单（四条，缺一不可）
