@@ -116,4 +116,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public int incrementLikes(Long userId) {
         return baseMapper.incrementLikes(userId);
     }
+
+    @Override
+    public int refreshPointsRank() {
+        return baseMapper.refreshPointsRank();
+    }
+
+    @Override
+    public int refreshHoursRank() {
+        return baseMapper.refreshHoursRank();
+    }
 }

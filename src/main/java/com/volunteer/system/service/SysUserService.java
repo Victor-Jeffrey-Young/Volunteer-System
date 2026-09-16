@@ -29,4 +29,16 @@ public interface SysUserService extends IService<SysUser> {
      * @return 影响行数，1 表示成功
      */
     int incrementLikes(Long userId);
+
+    /**
+     * 刷新「昨日积分排名」快照（写入 last_rank）。
+     * 一条窗口函数语句算完，只排 VOLUNTEER，返回更新行数。
+     */
+    int refreshPointsRank();
+
+    /**
+     * 刷新「昨日时长排名」快照（写入 last_hours_rank）。
+     * 一条窗口函数语句算完，只排 VOLUNTEER，返回更新行数。
+     */
+    int refreshHoursRank();
 }

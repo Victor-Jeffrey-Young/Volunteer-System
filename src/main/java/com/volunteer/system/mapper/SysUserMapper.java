@@ -52,4 +52,34 @@ public interface SysUserMapper extends BaseMapper<SysUser> { // 继承 BaseMappe
     /** 加行级锁读取用户：用于必须在锁内完成「读—判断—写」的场景 */
     @Select("SELECT * FROM sys_user WHERE user_id = #{id} FOR UPDATE")
     SysUser selectByIdForUpdate(Long id);
+
+    /**
+     * 刷新「昨日积分排名」快照：一条窗口函数语句算完。
+     *
+     * 替代原来「把全部志愿者查进内存 → for 循环里逐条 UPDATE」的写法，好处有三：
+     *   1. 锁窗口从「遍历全部用户」缩短到「单条 UPDATE」，午夜不再和工时结算抢同一批行锁；
+     *   2. 排名由数据库一次算完，不必把整张用户表读进应用内存；
+     *   3. 并列时的先后顺序稳定（原来取决于 list() 的返回顺序）。
+     *
+     * 用 ROW_NUMBER() 而不是 RANK()：保持原实现「1..N 不并列」的语义，
+     * 并列时再按 user_id 升序给出确定先后。若产品想要并列同名次，换成 RANK() 即可。
+     * 只更新 VOLUNTEER：与原来只查 role='VOLUNTEER' 的行为一致，管理员不参与排名。
+     * 该 UPDATE...JOIN 写法已在本机 MySQL 8.0.46 上用临时表验证可用。
+     *
+     * @return 更新行数
+     */
+    @Update("UPDATE sys_user u JOIN (" +
+            "  SELECT user_id, ROW_NUMBER() OVER (ORDER BY total_points DESC, user_id ASC) AS rk " +
+            "  FROM sys_user WHERE role = 'VOLUNTEER'" +
+            ") t ON t.user_id = u.user_id " +
+            "SET u.last_rank = t.rk")
+    int refreshPointsRank();
+
+    /** 刷新「昨日时长排名」快照（写入 last_hours_rank），规则同上，按累计工时降序 */
+    @Update("UPDATE sys_user u JOIN (" +
+            "  SELECT user_id, ROW_NUMBER() OVER (ORDER BY total_hours DESC, user_id ASC) AS rk " +
+            "  FROM sys_user WHERE role = 'VOLUNTEER'" +
+            ") t ON t.user_id = u.user_id " +
+            "SET u.last_hours_rank = t.rk")
+    int refreshHoursRank();
 }
