@@ -132,7 +132,7 @@ if [ -z "${JAVA_HOME:-}" ] && [ -d "/usr/lib/jvm/java-$JAVA_VERSION-openjdk-amd6
 fi
 
 if [ "$TARGET" = "all" ] || [ "$TARGET" = "backend" ]; then
-  command -v java >/dev/null 2>&1 || { fail "未找到 java，请先安装 JDK $JAVA_VERSION（macOS: brew install openjdk@$JAVA_VERSION）"; exit 1; }
+  command -v java >/dev/null 2>&1 || { fail "未找到 java，请先安装 JDK ${JAVA_VERSION}（macOS: brew install openjdk@${JAVA_VERSION}）"; exit 1; }
   java_major="$(java -version 2>&1 | head -1 | sed -n 's/.*version "\([0-9]*\).*/\1/p')"
   [ "$java_major" = "17" ] || warn "当前 JDK 主版本为 ${java_major:-未知}，项目要求 17"
   info "JDK：$JAVA_HOME"
@@ -150,7 +150,7 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "backend" ]; then
       info "MySQL 容器未运行，正在启动 ..."
       docker start "$MYSQL_CONTAINER" >/dev/null && ok "MySQL 容器已启动" || warn "MySQL 容器启动失败，请手动检查"
     else
-      warn "未找到容器 $MYSQL_CONTAINER，后端连接数据库可能失败"
+      warn "未找到容器 ${MYSQL_CONTAINER}，后端连接数据库可能失败"
     fi
   else
     warn "未检测到 docker，跳过 MySQL 容器检查"
