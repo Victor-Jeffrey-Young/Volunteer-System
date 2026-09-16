@@ -13,7 +13,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -38,8 +40,21 @@ class RankTaskTest {
     private final List<Long> volunteerIds = new ArrayList<>();
     private Long adminId;
 
+    /**
+     * 任务会重算「全表」志愿者的 last_rank / last_hours_rank，而这是共享的开发库：
+     * 用例开始前先把现有快照记下来，结束后原样放回，避免把别人的名次改掉
+     * （临时用户被删掉后不回填，还会在名次里留下空洞）。
+     */
+    private final Map<Long, int[]> originalRanks = new LinkedHashMap<>();
+
     @BeforeEach
     void setUp() {
+        for (SysUser existing : userService.lambdaQuery().eq(SysUser::getRole, "VOLUNTEER").list()) {
+            originalRanks.put(existing.getUserId(), new int[]{
+                    existing.getLastRank() == null ? 0 : existing.getLastRank(),
+                    existing.getLastHoursRank() == null ? 0 : existing.getLastHoursRank()});
+        }
+
         volunteerIds.clear();
         volunteerIds.add(createUser("VOLUNTEER", 300, "1.00"));
         volunteerIds.add(createUser("VOLUNTEER", 200, "3.00"));
@@ -55,6 +70,19 @@ class RankTaskTest {
         if (adminId != null) {
             userMapper.deleteById(adminId);
         }
+
+        // 恢复被本次用例重算过的快照（期间被删除的用户跳过）
+        originalRanks.forEach((id, ranks) -> {
+            if (userMapper.selectById(id) == null) {
+                return;
+            }
+            SysUser restore = new SysUser();
+            restore.setUserId(id);
+            restore.setLastRank(ranks[0]);
+            restore.setLastHoursRank(ranks[1]);
+            userMapper.updateById(restore);
+        });
+        originalRanks.clear();
     }
 
     @Test
