@@ -22,7 +22,29 @@
 
 ---
 
-## 1. 前置条件
+## 1. 选路线 + 前置准备
+
+### 1.1 三条路线（按「省心程度」排序）
+
+| 路线 | 成本 | 适合 | 代价 / 注意 |
+|---|---|---|---|
+| **A. 学生额度 VPS** —— DigitalOcean $200 信用（有效期 1 年）、Azure for Students $100、Oracle 永久免费 | **0 元** | 长期挂一个能写进简历的链接 | 要绑卡验证；**选 2GB 内存**机型（1GB 按 2.1 节做适配）。Oracle 的免费 ARM 已被腰斩到 2 OCPU / 12GB，且经常抢不到容量，别当唯一方案 |
+| **B. Cloudflare Tunnel + 一台常开的机器** | **0 元** | 不想绑卡、家里/宿舍有常开的机器 | 机器关机就没了；不用公网 IP、不用开端口，自动给 HTTPS |
+| **C. GitHub Codespaces**（见第 9 节） | **0 元**（学生额度） | 面试现场临时演示，自带 HTTPS，摄像头可用 | 临时性：闲置会停；数据随环境重建 |
+
+> **域名**：Namecheap 学生包送 `.me` 一年（GitHub Student Pack 里领）；HTTPS 用 Let's Encrypt（第 4 节）。
+> **CI/CD 不花钱**：公开仓库的 GitHub Actions 分钟数免费，镜像可以推到 GHCR（见第 10 节）。
+
+### 1.2 动手前的准备清单
+
+- [ ] **代码已推到 GitHub** —— 服务器 `git clone` 到的是远端版本，本地没推的提交不会过去
+- [ ] 目标机器：内存 ≥2GB（1GB 严格照 2.1 节）、放行 **80/443**、**绝不放行 3306**
+- [ ] 生成两个密钥：`openssl rand -base64 48`（`JWT_SECRET`）、`openssl rand -base64 18`（`DB_PASSWORD`）
+- [ ] 域名与 A 记录（只做内网验证可跳过，先用自签证书）
+- [ ] 记住迁移脚本必须执行：`sql/` 下三个脚本 —— 漏掉就没有唯一索引与 CHECK 兜底
+- [ ] 演示数据：`bash scripts/reset-demo-data.sh --yes`（执行前会自动备份现有数据）
+
+### 1.3 服务器准备
 
 - 一台能装 Docker 的 Linux 服务器（1 核 2G 起，演示够用）
 - 一个域名，A 记录指向服务器 IP（要 HTTPS 就得有域名；只做内网验证可以跳过）
@@ -32,6 +54,15 @@
 # 服务器上装 Docker（Debian/Ubuntu）
 curl -fsSL https://get.docker.com | sh
 ```
+
+### 1.4 上线后必须复核的两件事
+
+1. **`JWT_SECRET` 必须是新生成的**：源码里那个默认密钥随公开仓库一起公开了，沿用它等于把管理员
+   权限送给任何看过仓库的人。自检：用默认值伪造一个 `role=ADMIN` 的 token 调 `/api/user/page`，
+   应当返回 401/403（第 3 节第 4 条给了命令）。
+2. **迁移脚本真的执行了**：`SHOW CREATE TABLE sys_registration;` 应看到唯一索引
+   `uk_user_activity_active`；`SHOW CREATE TABLE sys_goods;` 应看到
+   `ck_goods_stock_non_negative`。看不到就说明少跑了一次脚本，并发兜底少两层。
 
 ---
 
