@@ -409,22 +409,22 @@ const categories = ['全部', '社区服务', '环境保护', '教育助学', '�
 
 // 活动分类 → 本地配图映射
 const categoryImageMap = {
-  '社区服务': '/Community Services.png',
-  '环境保护': '/Environmental Protection.png',
-  '教育助学': '/Educational Assistance.png',
-  '助老服务': '/Elderly Care Services.png',
-  '医疗支援': '/Medical Support.png',
-  '文化艺术': '/Culture and Arts.png',
-  '技术支持': '/Technical Support.png',
-  '赛事服务': '/Event Services.png',
-  '其他': '/Others.png',
+  '社区服务': '/Community Services.webp',
+  '环境保护': '/Environmental Protection.webp',
+  '教育助学': '/Educational Assistance.webp',
+  '助老服务': '/Elderly Care Services.webp',
+  '医疗支援': '/Medical Support.webp',
+  '文化艺术': '/Culture and Arts.webp',
+  '技术支持': '/Technical Support.webp',
+  '赛事服务': '/Event Services.webp',
+  '其他': '/Others.webp',
 };
 
 const getCategoryCover = (activity) => {
   // 优先使用活动自带封面
   if (activity.cover) return activity.cover;
   // 根据分类匹配本地配图
-  return categoryImageMap[activity.type] || '/Others.png';
+  return categoryImageMap[activity.type] || '/Others.webp';
 };
 const statusOptions = [
   { label: '全部', value: '全部' },

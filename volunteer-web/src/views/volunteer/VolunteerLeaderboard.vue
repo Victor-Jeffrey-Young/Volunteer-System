@@ -20,7 +20,7 @@
         </div>
         <div class="flex items-center gap-4">
           <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-600 shrink-0 bg-slate-700">
-            <img :src="userStore.user?.avatar || '/default-Avatar.png'" alt="Me" class="w-full h-full object-cover" />
+            <img :src="userStore.user?.avatar || '/default-Avatar.webp'" alt="Me" class="w-full h-full object-cover" />
           </div>
           <div>
             <div class="font-bold text-lg flex items-center gap-2">

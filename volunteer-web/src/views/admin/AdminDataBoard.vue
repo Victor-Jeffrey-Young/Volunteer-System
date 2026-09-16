@@ -47,7 +47,18 @@
  * 核心功能：通过 ECharts 渲染后端聚合数据，支持跨终端的响应式自适应布局。
  */
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
-import * as echarts from 'echarts';
+// 按需引入 echarts：只注册本页用到的（饼图/柱状图/折线图 + 标题/网格/图例/提示框/Canvas 渲染器）。
+// 两个看板各自注册一次是刻意的：它们会分别打包，互不依赖整包。
+import * as echarts from 'echarts/core';
+import { PieChart, BarChart, LineChart } from 'echarts/charts';
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([
+  PieChart, BarChart, LineChart,
+  TitleComponent, TooltipComponent, LegendComponent, GridComponent,
+  CanvasRenderer
+]);
 import request from '../../utils/request';
 
 // --- DOM 元素引用 ---

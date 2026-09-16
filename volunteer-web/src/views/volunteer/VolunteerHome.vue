@@ -80,20 +80,20 @@ const confirmSignup = async () => {
 
 // 活动分类 → 本地配图映射
 const categoryImageMap = {
-  '社区服务': '/Community Services.png',
-  '环境保护': '/Environmental Protection.png',
-  '教育助学': '/Educational Assistance.png',
-  '助老服务': '/Elderly Care Services.png',
-  '医疗支援': '/Medical Support.png',
-  '文化艺术': '/Culture and Arts.png',
-  '技术支持': '/Technical Support.png',
-  '赛事服务': '/Event Services.png',
-  '其他': '/Others.png',
+  '社区服务': '/Community Services.webp',
+  '环境保护': '/Environmental Protection.webp',
+  '教育助学': '/Educational Assistance.webp',
+  '助老服务': '/Elderly Care Services.webp',
+  '医疗支援': '/Medical Support.webp',
+  '文化艺术': '/Culture and Arts.webp',
+  '技术支持': '/Technical Support.webp',
+  '赛事服务': '/Event Services.webp',
+  '其他': '/Others.webp',
 };
 
 const getCategoryCover = (activity) => {
   if (activity.cover) return getFullAvatar(activity.cover, 'cover');
-  return categoryImageMap[activity.type] || '/Others.png';
+  return categoryImageMap[activity.type] || '/Others.webp';
 };
 </script>
 
@@ -102,7 +102,7 @@ const getCategoryCover = (activity) => {
     <!-- Hero Section -->
     <section class="relative h-[400px] sm:h-[500px] overflow-hidden">
       <div class="absolute inset-0">
-        <img src="/hero-banner.png" alt="企鹅志愿者" class="h-full w-full object-cover" />
+        <img src="/hero-banner.webp" alt="企鹅志愿者" class="h-full w-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-r from-slate-900/70 via-slate-900/40 to-transparent"></div>
       </div>
       <div class="relative mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6 lg:px-8">

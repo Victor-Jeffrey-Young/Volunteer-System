@@ -9,9 +9,9 @@ export const getFullAvatar = (path, defaultType = 'avatar') => {
   // 1. 处理空路径：返回默认占位图
   if (!path) {
     if (defaultType === 'avatar') {
-      return '/default-Avatar.png';
+      return '/default-Avatar.webp';
     }
-    return '/Others.png';
+    return '/Others.webp';
   }
 
   // 2. 处理已包含完整域名的路径

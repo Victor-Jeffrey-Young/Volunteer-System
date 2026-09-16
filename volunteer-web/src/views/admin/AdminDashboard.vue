@@ -142,7 +142,18 @@ import {
 import { ElMessage } from 'element-plus';
 import request from '../../utils/request';
 import { getFullAvatar } from '../../utils/file';
-import * as echarts from 'echarts';
+// 按需引入 echarts：整包会把所有图表类型与组件都打进产物（1MB+），
+// 这里只注册本页真正用到的（饼图 + 柱状图 + 标题/网格/图例/提示框/Canvas 渲染器）。
+import * as echarts from 'echarts/core';
+import { PieChart, BarChart } from 'echarts/charts';
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+echarts.use([
+  PieChart, BarChart,
+  TitleComponent, TooltipComponent, LegendComponent, GridComponent,
+  CanvasRenderer
+]);
 
 const router = useRouter();
 const todoList = ref([]);
