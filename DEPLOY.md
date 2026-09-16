@@ -366,3 +366,15 @@ docker compose -f docker-compose.yml -f deploy/compose.ghcr.yml up -d
 
 配好后：**Actions → CD → Run workflow → 勾选「同时部署到服务器」**。
 没配 secrets 也不会影响 push 触发的镜像构建（deploy job 不会运行）。
+
+### 10.3 排障：GHCR 推送失败
+
+若 CD 的「推送到 GHCR」这一步报 `denied: permission_denied`：
+
+1. 打开 **Settings → Actions → General → Workflow permissions**，选 **Read and write permissions** 并保存
+   （新建仓库默认可能只有 read，工作流里虽然声明了 `packages: write`，但仓库策略更严格时以策略为准）；
+2. 重新跑一次 CD（Actions → CD → Re-run all jobs）；
+3. 仍然失败就改用 PAT：新建一个带 `write:packages` 的 token，存成 secret `GHCR_TOKEN`，
+   把 `cd.yml` 里 `password:` 换成 `${{ secrets.GHCR_TOKEN }}`。
+
+服务器侧拉不动私有包时同理：`docker login ghcr.io` 用的凭证需要有 `read:packages`。

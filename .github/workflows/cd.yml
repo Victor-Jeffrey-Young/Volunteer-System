@@ -55,17 +55,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 构建并推送 ${{ matrix.name }}
+      - name: 构建 ${{ matrix.name }} 镜像
+        # 刻意与推送分开两步：build-push-action 一步做完时，失败消息里分不清
+        # 是"构建挂了"还是"推不上去"（第一次跑就是这么卡住的）。
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: true
+          push: false
+          load: true
           tags: |
             ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:latest
             ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:sha-${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: 推送到 GHCR
+        run: |
+          docker push ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:latest
+          docker push ${{ steps.meta.outputs.prefix }}/${{ matrix.name }}:sha-${{ github.sha }}
+
+      - name: 失败时打印诊断信息
+        if: failure()
+        run: |
+          echo "── 镜像是否构建出来了 ──"
+          docker images | grep -i volunteer || echo "（没有产出镜像 → 失败在构建阶段）"
+          echo "── 登录状态 ──"
+          docker info 2>/dev/null | grep -i "registry\|username" || true
+          echo "── 提示 ──"
+          echo "若失败在「推送到 GHCR」：检查仓库 Settings → Actions → General → Workflow permissions"
+          echo "是否允许 read and write（详见 DEPLOY.md 第 10 节）。"
 
   deploy:
     name: 部署到服务器（手动触发）
