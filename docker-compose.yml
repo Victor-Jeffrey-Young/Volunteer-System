@@ -1,0 +1,78 @@
+# ════════════════════════════════════════════════════════════════
+# 公网演示环境编排：MySQL + 后端 + 前端(nginx, HTTPS 终止)
+#
+#   首次部署：
+#     cp .env.example .env && vi .env          # 填 JWT_SECRET 与 DB_PASSWORD
+#     mkdir -p deploy/certs && <放入证书>       # 见 DEPLOY.md 第 4 步
+#     docker compose up -d --build
+#     bash scripts/reset-demo-data.sh          # 导入精编演示数据（可选）
+#
+#   本机只想验证后端/前端（复用已有 MySQL 容器）：
+#     docker compose up -d --build backend frontend
+#     （.env 里把 DB_HOST 改成 host.docker.internal）
+# ════════════════════════════════════════════════════════════════
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: volunteer-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?必须在 .env 里设置 DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-volunteer_db}
+      TZ: Asia/Shanghai
+    # 只绑定本机回环：数据库绝不能直接暴露到公网（云安全组也别放 3306）
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    volumes:
+      # 卷名与 docker 目录名相关：在项目根目录执行时即 volunteer-system_mysql_data，
+      # 正是本机已有数据的那个卷，重建容器不会丢数据
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    container_name: volunteer-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: ${DB_HOST:-mysql}
+      UPLOAD_DIR: /data/files
+    volumes:
+      # 上传文件放宿主机目录：重启/重建容器都不丢，也方便备份
+      - ./files:/data/files
+    depends_on:
+      mysql:
+        condition: service_healthy
+    expose:
+      - "8081"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: volunteer-frontend
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # 证书目录：把 fullchain.pem / privkey.pem 放进来（见 DEPLOY.md）
+      - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

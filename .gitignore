@@ -42,3 +42,14 @@ build/
 docs/
 # 规格文件（spec 驱动开发的过程产物）同样只留本地
 SPEC.md
+
+### 部署与密钥 ###
+# 环境变量文件：含 JWT 密钥与数据库口令，只能留在服务器上
+.env
+.env.local
+# TLS 证书：自签证书或从 Let's Encrypt 拷过来的，都不要入库
+deploy/certs/
+
+### 数据库备份 ###
+# reset-demo-data.sh 自动生成的 mysqldump 备份
+backups/

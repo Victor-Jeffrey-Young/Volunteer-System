@@ -1,0 +1,20 @@
+# 构建镜像时不需要进上下文的东西（构建上下文是仓库根目录）
+.git
+.gitignore
+.idea
+.vscode
+docs
+files
+target
+**/target
+node_modules
+**/node_modules
+volunteer-web/dist
+deploy/certs
+*.log
+*.md
+!README.md
+.env
+.env.*
+!.env.example
+.DS_Store

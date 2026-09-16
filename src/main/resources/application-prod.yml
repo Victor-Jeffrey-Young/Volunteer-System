@@ -1,0 +1,62 @@
+# ════════════════════════════════════════════════════════════════
+# 生产 / 公网演示环境配置（用 SPRING_PROFILES_ACTIVE=prod 激活）
+#
+# 与开发配置的三处关键差异：
+#   1. 密钥与口令「没有默认值」—— 缺失就启动失败，避免沿用源码里的公开默认值；
+#   2. 关掉 SQL 控制台打印 —— 它会连行数据一起打进日志（password 哈希、手机号、邮箱）；
+#   3. 上传根目录改为可配置的绝对路径，不再依赖启动时的工作目录。
+# ════════════════════════════════════════════════════════════════
+server:
+  port: ${SERVER_PORT:8081}
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:volunteer_db}?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf-8
+    username: ${DB_USERNAME:root}
+    # 故意不给默认值：缺 DB_PASSWORD 时应用启动即报错，而不是悄悄用 123456 连上
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 3000
+  servlet:
+    multipart:
+      max-file-size: ${UPLOAD_MAX_SIZE:2MB}
+      max-request-size: ${UPLOAD_MAX_REQUEST:4MB}
+
+# JWT：同样不给默认值。源码里的默认密钥已随公开仓库公开，
+# 沿用它等于把管理员权限送给任何一个看过仓库的人。
+jwt:
+  secret: ${JWT_SECRET}
+  expire-hours: ${JWT_EXPIRE_HOURS:12}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    # 生产关掉 SQL 打印：StdOutImpl 会把结果集行数据一起写进日志
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.volunteer.system: ${APP_LOG_LEVEL:INFO}
+
+# 接口文档开关：演示时保留（/doc.html 是加分项），不想公开就设 SWAGGER_ENABLED=false
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  packages-to-scan: com.volunteer.system
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# 上传根目录：容器里是挂载进来的绝对路径，本地不带 prod 时仍走自动探测
+app:
+  upload:
+    dir: ${UPLOAD_DIR:/data/files}

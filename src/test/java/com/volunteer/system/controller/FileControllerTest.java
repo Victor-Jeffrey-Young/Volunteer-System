@@ -22,8 +22,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 文件上传与存储模块集成测试 (已集成身份验证绕过)
+ *
+ * 上传目录显式指到 target/test-uploads：以前用例会把测试文件写进真实的 files/ 目录，
+ * 每跑一次测试就多几个残留 png，和用户上传的文件混在一起。
+ * 现在上传根目录是配置项（app.upload.dir），测试用独立目录，mvn clean 一并清掉。
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.upload.dir=target/test-uploads")
 @AutoConfigureMockMvc
 public class FileControllerTest {
 

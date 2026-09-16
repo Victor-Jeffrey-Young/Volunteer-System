@@ -2,6 +2,7 @@ package com.volunteer.system.controller;
 
 import com.volunteer.system.common.Result;
 import com.volunteer.system.common.ServiceException;
+import com.volunteer.system.config.UploadProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,19 +28,15 @@ import java.util.UUID;
 @Tag(name = "07. 文件模块", description = "处理非结构化数据(图片)的上传与映射")
 public class FileController {
 
-    // 路径探测
-    private static final String UPLOAD_PATH;
+    /**
+     * 上传根目录由 UploadProperties 统一解析（配置 app.upload.dir，缺省回落到 ./files/）。
+     * 以前这里是静态块里读 user.dir —— 换成 systemd/容器启动（工作目录不是项目根）时，
+     * 上传会写到别处，而 WebConfig 又把 /files/** 映射到另一个目录，图片就 404。
+     */
+    private final UploadProperties uploadProperties;
 
-    static {
-        String userDir = System.getProperty("user.dir");
-        String testPath = userDir + "/files/";
-        File folder = new File(testPath);
-        if (!folder.exists() && new File(userDir + "/2.Backend/files/").exists()) {
-            UPLOAD_PATH = userDir + "/2.Backend/files/";
-        } else {
-            UPLOAD_PATH = testPath;
-        }
-        log.info("【文件系统】当前存储物理路径设定为: {}", UPLOAD_PATH);
+    public FileController(UploadProperties uploadProperties) {
+        this.uploadProperties = uploadProperties;
     }
 
     /**
@@ -69,7 +66,7 @@ public class FileController {
         String extension = extractExtension(originalName);
 
         // 3. 自动创建目录并校验最终路径仍落在上传根目录内（双保险）
-        String finalUploadPath = UPLOAD_PATH + subDir + "/";
+        String finalUploadPath = uploadProperties.getRootDir() + subDir + "/";
         File folder = new File(finalUploadPath);
         if (!folder.exists() && !folder.mkdirs()) {
             throw new ServiceException(500, "上传目录创建失败");
@@ -79,7 +76,7 @@ public class FileController {
         String fileName = UUID.randomUUID().toString().replace("-", "") + extension;
         File target = new File(folder, fileName);
         if (!target.getAbsoluteFile().toPath().normalize()
-                .startsWith(new File(UPLOAD_PATH).getAbsoluteFile().toPath().normalize())) {
+                .startsWith(new File(uploadProperties.getRootDir()).getAbsoluteFile().toPath().normalize())) {
             throw new ServiceException(400, "非法的存储路径");
         }
 
